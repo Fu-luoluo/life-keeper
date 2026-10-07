@@ -1,4 +1,4 @@
-﻿/* ==========================================================================
+/* ==========================================================================
  * js/lib/storage.js 鈥?鍞竴鏁版嵁璁块棶灞? * --------------------------------------------------------------------------
  * 閾佸緥锛圓GENTS.md 5 / PRD 9.1锛夛細
  *   涓氬姟妯″潡绂佹鐩存帴璇诲啓 localStorage / IndexedDB锛屼竴寰嬬粡鐢辨湰鏂囦欢銆? *
@@ -545,4 +545,87 @@ export function onExternalChange(handler) {
   };
   globalThis.addEventListener('storage', listener);
   return () => globalThis.removeEventListener('storage', listener);
+}
+
+/* --------------------------------------------------------------------------
+ * 草稿（独立命名空间，不属于业务数据库）
+ * --------------------------------------------------------------------------
+ * 草稿是「未提交的输入」，不是业务数据：
+ *   - 存在独立键 life-keeper:draft:<name>，不进入 DB_KEY 的根结构，
+ *     因此不影响 schemaVersion、也不会出现在导出备份里；
+ *   - 仍由本文件独占 localStorage，业务模块不得直接触碰；
+ *   - 读写失败（例如配额满）一律降级为「无草稿 / 保存失败」，不抛异常打断输入。
+ * -------------------------------------------------------------------------- */
+
+/** 草稿键前缀（如 life-keeper:draft:diary） */
+export const DRAFT_KEY_PREFIX = 'life-keeper:draft:';
+
+/** 允许的草稿命名空间，避免业务层拼出意外键名 */
+const DRAFT_NAMESPACES = ['diary'];
+
+/**
+ * 构造草稿键。
+ * @param {string} namespace
+ * @returns {string}
+ */
+function draftKey(namespace) {
+  if (!DRAFT_NAMESPACES.includes(namespace)) {
+    throw new StorageError('INVALID_ARGUMENT', `draft:${namespace}`);
+  }
+  return `${DRAFT_KEY_PREFIX}${namespace}`;
+}
+
+/**
+ * 读取草稿。内容损坏时按「无草稿」处理（草稿不值得阻塞用户），但不会删除它。
+ * @param {string} namespace
+ * @returns {Promise<object | null>}
+ */
+export async function getDraft(namespace) {
+  const key = draftKey(namespace);
+  let text = null;
+  try {
+    text = globalThis.localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+  if (!text) return null;
+
+  try {
+    const parsed = JSON.parse(text);
+    return isPlainObject(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * 写入草稿（整体覆盖）。
+ * @param {string} namespace
+ * @param {object} data
+ * @returns {Promise<boolean>} 是否写入成功
+ */
+export async function saveDraft(namespace, data) {
+  const key = draftKey(namespace);
+  if (!isPlainObject(data)) throw new StorageError('INVALID_ARGUMENT', 'draft');
+  try {
+    globalThis.localStorage.setItem(key, JSON.stringify(data));
+    return true;
+  } catch {
+    // 配额不足等写入失败：不影响正在进行的编辑
+    return false;
+  }
+}
+
+/**
+ * 清除草稿（保存成功 / 用户主动丢弃时调用）。
+ * @param {string} namespace
+ * @returns {Promise<void>}
+ */
+export async function clearDraft(namespace) {
+  const key = draftKey(namespace);
+  try {
+    globalThis.localStorage.removeItem(key);
+  } catch {
+    // 忽略：清不掉草稿不应阻塞保存流程
+  }
 }

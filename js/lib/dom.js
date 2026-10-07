@@ -124,10 +124,11 @@ export function showToast(message, options = {}) {
  * @param {{
  *   title: string,
  *   subtitle?: string,
+ *   widthPx?: number,
  *   bodyChildren?: Node[],
  *   actions: ModalAction[],
  *   onClose?: () => void
- * }} config
+ * }} config widthPx：面板宽度（DESIGN.md E.1 表单类默认 480px；宽表单可传 720px）
  * @returns {{panel: HTMLElement, close: () => void, setError: (message: string) => void}}
  */
 export function openModal(config) {
@@ -139,6 +140,16 @@ export function openModal(config) {
   const bodyNode = byId('modal-body');
   const footerNode = byId('modal-footer');
   if (!titleNode || !bodyNode || !footerNode) throw new Error('modal skeleton missing');
+
+  // 面板宽度：只通过 CSS 变量的最大宽度表达，宽度仍受视口限制（窄窗口自动收窄）
+  const panel = /** @type {HTMLElement | null} */ (overlay.querySelector('.lk-modal'));
+  if (panel) {
+    if (Number.isFinite(config.widthPx) && config.widthPx > 0) {
+      panel.style.setProperty('--lk-modal-width', `${Math.trunc(config.widthPx)}px`);
+    } else {
+      panel.style.removeProperty('--lk-modal-width');
+    }
+  }
 
   setText(titleNode, config.title);
   setText(subtitleNode, config.subtitle ?? '');

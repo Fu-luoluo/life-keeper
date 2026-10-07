@@ -950,7 +950,8 @@ html:not(.lk-ready) body {
 
 .lk-modal {
   width: 100%;
-  max-width: 480px;
+  /* E.1 默认 480px（表单类）；宽表单（生活记录编辑器）由 JS 传 --lk-modal-width: 720px */
+  max-width: var(--lk-modal-width, 480px);
   max-height: calc(100vh - 48px);
   display: flex;
   flex-direction: column;
@@ -1630,7 +1631,268 @@ html:not(.lk-ready) body {
 }
 
 /* --------------------------------------------------------------------------
-   19. 动效偏好 — DESIGN.md H.3：prefers-reduced-motion 下取消动效
+   19. 生活记录：编辑器（大文本域 / 心情）、列表（时间线 · 卡片）
+   -------------------------------------------------------------------------- */
+
+/* 正文文本域：{components.text-input} 同源样式 + 最小高度 240px + 保留换行 */
+.lk-textarea {
+  width: 100%;
+  min-height: 240px;
+  padding: var(--lk-spacing-sm) var(--lk-spacing-md);
+  background-color: var(--lk-canvas);
+  color: var(--lk-ink);
+  font-family: inherit;
+  font-size: var(--lk-text-body-md);
+  line-height: var(--lk-leading-body-md);
+  border: 1px solid var(--lk-hairline-strong);
+  border-radius: var(--lk-radius-md);
+  outline: none;
+  resize: vertical;
+  /* F3-1：纯文本 + 换行，换行必须原样呈现 */
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  transition: border-color var(--lk-motion-fast) var(--lk-ease),
+              box-shadow var(--lk-motion-fast) var(--lk-ease);
+}
+
+.lk-textarea::placeholder {
+  color: var(--lk-muted);
+  opacity: 1;
+}
+
+.lk-textarea:focus {
+  border-color: var(--lk-primary);
+  box-shadow: inset 0 0 0 1px var(--lk-primary);
+}
+
+/* 心情：5 档圆形按钮。未选中 {colors.stone}，选中用该档的颜色（data-ink） */
+.lk-mood-row {
+  display: flex;
+  gap: var(--lk-spacing-sm);
+  flex-wrap: wrap;
+}
+
+.lk-mood-btn {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--lk-spacing-xxs);
+  min-width: 64px;
+  min-height: 56px;
+  padding: var(--lk-spacing-xs);
+  border: 1px solid var(--lk-hairline);
+  border-radius: var(--lk-radius-md);
+  background-color: var(--lk-canvas);
+  /* 未选中：{colors.stone} */
+  color: var(--lk-stone);
+  font-family: inherit;
+  font-size: var(--lk-text-caption);
+  line-height: var(--lk-leading-caption);
+  cursor: pointer;
+  transition: background-color var(--lk-motion-fast) var(--lk-ease),
+              border-color var(--lk-motion-fast) var(--lk-ease),
+              color var(--lk-motion-fast) var(--lk-ease);
+}
+
+.lk-mood-btn:hover {
+  background-color: var(--lk-hairline-soft);
+}
+
+/* 选中态：图标取该档颜色（--lk-mood-ink 由 data-ink 决定），文字用 charcoal */
+.lk-mood-btn.is-active {
+  border-color: var(--lk-primary);
+  background-color: var(--lk-surface);
+  color: var(--lk-mood-ink, var(--lk-charcoal));
+}
+
+.lk-mood-btn.is-active .lk-mood-label {
+  color: var(--lk-charcoal);
+}
+
+.lk-mood-label {
+  white-space: nowrap;
+}
+
+/* 心情颜色映射：统一线性圆脸图标，仅颜色区分档位 */
+[data-ink='semantic-error'] { color: var(--lk-semantic-error); --lk-mood-ink: var(--lk-semantic-error); }
+[data-ink='brand-orange'] { color: var(--lk-brand-orange); --lk-mood-ink: var(--lk-brand-orange); }
+[data-ink='brand-yellow'] { color: var(--lk-brand-yellow); --lk-mood-ink: var(--lk-brand-yellow); }
+[data-ink='brand-teal'] { color: var(--lk-brand-teal); --lk-mood-ink: var(--lk-brand-teal); }
+[data-ink='brand-green'] { color: var(--lk-brand-green); --lk-mood-ink: var(--lk-brand-green); }
+
+/* 工具行右侧分组 */
+.lk-toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: var(--lk-spacing-sm);
+}
+
+/* 月份分组 */
+.lk-month-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.lk-month-group + .lk-month-group {
+  margin-top: var(--lk-spacing-xl);
+}
+
+/* 时间线列表：{rounded.lg} 卡片式分组 */
+.lk-note-list {
+  display: flex;
+  flex-direction: column;
+  background-color: var(--lk-canvas);
+  border: 1px solid var(--lk-hairline);
+  border-radius: var(--lk-radius-lg);
+  overflow: hidden;
+}
+
+/* 单条记录（整行可点击进入编辑） */
+.lk-entry {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: var(--lk-spacing-xs) var(--lk-spacing-md);
+  padding: var(--lk-spacing-md);
+  border-bottom: 1px solid var(--lk-hairline-soft);
+  cursor: pointer;
+  transition: background-color var(--lk-motion-fast) var(--lk-ease);
+}
+
+.lk-entry:last-child {
+  border-bottom: 0;
+}
+
+.lk-entry:hover {
+  background-color: var(--lk-surface-soft);
+}
+
+.lk-entry-main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lk-spacing-xxs);
+  min-width: 0;
+}
+
+/* 标题 {typography.body-md-medium} + {colors.charcoal} */
+.lk-entry-title {
+  font-size: var(--lk-text-body-md);
+  line-height: var(--lk-leading-body-md);
+  font-weight: 500;
+  color: var(--lk-charcoal);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 正文摘要 {typography.body-sm} + {colors.slate}，保留换行样式 */
+.lk-entry-body {
+  margin: 0;
+  font-size: var(--lk-text-body-sm);
+  line-height: var(--lk-leading-body-sm);
+  color: var(--lk-slate);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* 行数截断（摘要 2–3 行） */
+.lk-clamp-3 {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.lk-entry-aside {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--lk-spacing-xs);
+}
+
+.lk-entry-footer {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: var(--lk-spacing-xs);
+  flex-wrap: wrap;
+}
+
+/* 心情小标记（图标 16px + 标签 caption） */
+.lk-entry-mood {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--lk-spacing-xxs);
+  padding: 2px var(--lk-spacing-xs);
+  border-radius: var(--lk-radius-sm);
+  background-color: var(--lk-surface);
+  font-size: var(--lk-text-caption-bold);
+  line-height: var(--lk-leading-caption-bold);
+  font-weight: 600;
+}
+
+/* 标签 chip：{rounded.sm} + {colors.card-tint-lavender} + {colors.brand-purple-800} */
+.lk-tag-chip {
+  padding: 2px var(--lk-spacing-xs);
+  border-radius: var(--lk-radius-sm);
+  background-color: var(--lk-card-tint-lavender);
+  color: var(--lk-brand-purple-800);
+  font-size: var(--lk-text-caption-bold);
+  line-height: var(--lk-leading-caption-bold);
+  font-weight: 600;
+}
+
+/* 时间 {typography.caption-bold} + {colors.steel} */
+.lk-entry-time {
+  font-size: var(--lk-text-caption-bold);
+  line-height: var(--lk-leading-caption-bold);
+  font-weight: 600;
+  color: var(--lk-steel);
+  font-variant-numeric: tabular-nums;
+}
+
+/* 卡片视图：自适应网格 */
+.lk-note-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: var(--lk-spacing-md);
+}
+
+.lk-note-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lk-spacing-xs);
+  padding: var(--lk-spacing-lg);
+  background-color: var(--lk-canvas);
+  border: 1px solid var(--lk-hairline);
+  border-radius: var(--lk-radius-lg);
+  cursor: pointer;
+  transition: background-color var(--lk-motion-fast) var(--lk-ease),
+              border-color var(--lk-motion-fast) var(--lk-ease);
+}
+
+.lk-note-card:hover {
+  background-color: var(--lk-surface-soft);
+}
+
+.lk-note-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--lk-spacing-xs);
+  min-height: 28px;
+}
+
+.lk-note-card-body {
+  margin: 0;
+  font-size: var(--lk-text-body-sm);
+  line-height: var(--lk-leading-body-sm);
+  color: var(--lk-slate);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* --------------------------------------------------------------------------
+   20. 动效偏好 — DESIGN.md H.3：prefers-reduced-motion 下取消动效
    -------------------------------------------------------------------------- */
 @media (prefers-reduced-motion: reduce) {
   *,

@@ -41,7 +41,9 @@ import {
 import {
   StorageError,
   add,
+  clearDraft,
   getCollection,
+  getDraft,
   getSecurity,
   getSettings,
   initDB,
@@ -49,6 +51,7 @@ import {
   onExternalChange,
   patchSecurity,
   remove,
+  saveDraft,
   update
 } from './lib/storage.js';import { formatLocalDateText, throttle } from './lib/utils.js';
 
@@ -181,8 +184,11 @@ function resetAuthForms() {
  * 避免上一个解锁会话的筛选条件、月份、进行中的编辑残留到下一次。
  */
 function resetDataModules() {
-  const reset = /** @type {any} */ (accountModule).resetAccount;
-  if (typeof reset === 'function') reset();
+  const resetAccount = /** @type {any} */ (accountModule).resetAccount;
+  if (typeof resetAccount === 'function') resetAccount();
+
+  const resetDiary = /** @type {any} */ (diaryModule).resetDiary;
+  if (typeof resetDiary === 'function') resetDiary();
 }
 
 /* --------------------------------------------------------------------------
@@ -377,6 +383,10 @@ function navigateTo(pageId, options = {}) {
 const PAGE_ENTER = {
   account: () => {
     const refresh = /** @type {any} */ (accountModule).renderAccount;
+    if (typeof refresh === 'function') void refresh();
+  },
+  diary: () => {
+    const refresh = /** @type {any} */ (diaryModule).renderDiary;
     if (typeof refresh === 'function') void refresh();
   }
 };
@@ -672,6 +682,33 @@ function mountAccountModule() {
 }
 
 /* --------------------------------------------------------------------------
+ * 生活记录模块装配
+ * -------------------------------------------------------------------------- */
+
+/**
+ * 装配生活记录模块（同样是注入模式：diary.js 不 import storage.js / main.js）。
+ * 草稿只在「新记录」场景使用，且单独存放在 life-keeper:draft:diary 命名空间，
+ * 不属于业务数据库（不参与 schemaVersion、不进导出备份）。
+ */
+function mountDiaryModule() {
+  const mount = /** @type {any} */ (diaryModule).mountDiary;
+  if (typeof mount !== 'function') return;
+
+  const namespace = /** @type {any} */ (diaryModule).DIARY_DRAFT_NAMESPACE ?? 'diary';
+
+  mount({
+    getDiaries: () => getCollection('diaries'),
+    addDiary: (data) => add('diaries', data),
+    updateDiary: (id, patch) => update('diaries', id, patch),
+    removeDiary: (id) => remove('diaries', id),
+    getDraft: () => getDraft(namespace),
+    saveDraft: (data) => saveDraft(namespace, data),
+    clearDraft: () => clearDraft(namespace),
+    notify: showToast
+  });
+}
+
+/* --------------------------------------------------------------------------
  * 启动
  * -------------------------------------------------------------------------- */
 
@@ -695,6 +732,7 @@ async function bootstrap() {
   bindUnlockForm();
   mountSettingsModule();
   mountAccountModule();
+  mountDiaryModule();
 
   // 清空数据入口：仅出现在「已锁定」与「数据损坏」两个门禁视图
   // （未初始化视图不显示该按钮；设置页入口由 settings 模块自己绑定）

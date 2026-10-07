@@ -183,6 +183,38 @@ export function parseAmountToCents(text) {
 }
 
 /* --------------------------------------------------------------------------
+ * 标签：记账与生活记录共用的落盘规则（去空白、去重、支持中英文逗号）
+ * -------------------------------------------------------------------------- */
+
+/**
+ * 逗号分隔的标签文本 → 去重后的数组。
+ * @param {string} text
+ * @returns {string[]}
+ */
+export function parseTags(text) {
+  if (typeof text !== 'string') return [];
+  const seen = new Set();
+  const result = [];
+  for (const piece of text.split(/[,，]/)) {
+    const tag = piece.trim();
+    if (tag.length === 0 || seen.has(tag)) continue;
+    seen.add(tag);
+    result.push(tag);
+  }
+  return result;
+}
+
+/**
+ * 标签数组 → 逗号分隔的输入框文本（编辑时回填用）。
+ * @param {unknown} tags
+ * @returns {string}
+ */
+export function formatTagsInput(tags) {
+  if (!Array.isArray(tags)) return '';
+  return tags.filter((tag) => typeof tag === 'string' && tag.length > 0).join('，');
+}
+
+/* --------------------------------------------------------------------------
  * 时间：本地输入 ↔ ISO 8601（带偏移）
  * -------------------------------------------------------------------------- */
 

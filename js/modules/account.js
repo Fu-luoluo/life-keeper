@@ -29,6 +29,7 @@ import {
   localInputValueToIso,
   localMonthKeyFromIso,
   parseAmountToCents,
+  parseTags,
   shiftMonthKey
 } from '../lib/utils.js';
 
@@ -322,24 +323,6 @@ function groupByDay(list) {
       );
       return { dayKey, expense, items: sorted };
     });
-}
-
-/**
- * 逗号（中英文）分隔的标签文本 → 去重后的数组。
- * @param {string} text
- * @returns {string[]}
- */
-function parseTags(text) {
-  if (typeof text !== 'string') return [];
-  const seen = new Set();
-  const result = [];
-  for (const piece of text.split(/[,，]/)) {
-    const tag = piece.trim();
-    if (tag.length === 0 || seen.has(tag)) continue;
-    seen.add(tag);
-    result.push(tag);
-  }
-  return result;
 }
 
 /**
