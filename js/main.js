@@ -48,12 +48,22 @@ import {
   getSettings,
   initDB,
   isInitialized,
+  mergeInto,
   onExternalChange,
   patchSecurity,
+  readWholeDB,
   remove,
+  replaceAll,
   saveDraft,
   update
-} from './lib/storage.js';import { formatLocalDateText, throttle } from './lib/utils.js';
+} from './lib/storage.js';
+import {
+  formatLocalDateText,
+  isSecurityChanged,
+  mergeDB,
+  parseBackup,
+  throttle
+} from './lib/utils.js';
 
 import * as dashboardModule from './modules/dashboard.js';
 import * as accountModule from './modules/account.js';
@@ -61,6 +71,7 @@ import * as diaryModule from './modules/diary.js';
 import * as itemsModule from './modules/items.js';
 import * as vaultModule from './modules/vault.js';
 import * as settingsModule from './modules/settings.js';
+
 /* --------------------------------------------------------------------------
  * 全局状态
  * -------------------------------------------------------------------------- */
@@ -677,6 +688,7 @@ function mountSettingsModule() {
       setSessionKey(key); // 保持解锁状态，但换用新密钥
     },
     requestClearAll: requestClearAllFromSettings,
+    ...createBackupApi(),
     notify: showToast
   });
 }
@@ -794,17 +806,11 @@ function mountVaultModule() {
   const mount = /** @type {any} */ (vaultModule).mountVault;
   if (typeof mount !== 'function') return;
 
-  /** 取当前会话密钥；未解锁时说明调用时机有误，直接抛错而不是静默降级 */
-  const requireKey = () => {
-    if (!sessionKey) throw new Error('会话已锁定，请重新解锁');
-    return sessionKey;
-  };
-
   mount({
     getCredentials: () => getCollection('credentials'),
 
     addCredential: async (entry) => {
-      const key = requireKey();
+      const key = requireSessionKey();
       // 明文只在这一行的实参里出现；加密完成后 entry 立即失去引用
       const password = await encrypt(key, entry.password);
       const note = await encryptNote(key, entry.note);
@@ -821,7 +827,7 @@ function mountVaultModule() {
     },
 
     updateCredential: async (id, entry) => {
-      const key = requireKey();
+      const key = requireSessionKey();
       const password = await encrypt(key, entry.password);
       const note = await encryptNote(key, entry.note);
       return update('credentials', id, {
@@ -837,7 +843,7 @@ function mountVaultModule() {
     },
 
     revealCredential: async (cred) => {
-      const key = requireKey();
+      const key = requireSessionKey();
       return {
         password: await decryptText(key, cred?.password),
         note: await decryptText(key, cred?.note)
@@ -881,6 +887,141 @@ function mountDashboardModule() {
     navigateTo: (pageId) => navigateTo(pageId),
     notify: showToast
   });
+}
+
+/* --------------------------------------------------------------------------
+ * 备份的导出 / 导入（F6-3 / F6-4）
+ * --------------------------------------------------------------------------
+ * 这里是明文导出的**唯一**解密点：整库密文逐个解密 → 组装成整份 JSON 文本 →
+ * 返回给调用方落成文件。中途任何一条解密失败都会整体抛错，
+ * 因此不会产出「一半明文一半密文」的半成品文件；文本不被任何模块变量缓存。
+ * -------------------------------------------------------------------------- */
+
+/**
+ * 从密文结构解出明文（结构非法按空串处理）。
+ * @param {CryptoKey} key
+ * @param {unknown} payload
+ * @returns {Promise<string>}
+ */
+async function decryptField(key, payload) {
+  if (
+    !payload ||
+    typeof payload !== 'object' ||
+    typeof (/** @type {any} */ (payload).iv) !== 'string' ||
+    typeof (/** @type {any} */ (payload).ct) !== 'string'
+  ) {
+    return '';
+  }
+  return decrypt(key, /** @type {{iv: string, ct: string}} */ (payload));
+}
+
+/**
+ * 备份文件名：life-keeper-backup-YYYYMMDD[-plain].json（日期取本地时区）。
+ * @param {boolean} plaintext
+ * @returns {string}
+ */
+function backupFilename(plaintext) {
+  const now = new Date();
+  const pad = (value) => String(value).padStart(2, '0');
+  const stamp = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}`;
+  return `life-keeper-backup-${stamp}${plaintext ? '-plain' : ''}.json`;
+}
+
+/**
+ * 构造设置页「数据备份」所需的注入能力。
+ * @returns {object}
+ */
+function createBackupApi() {
+  return {
+    /* ---------- 导出 ---------- */
+
+    exportEncryptedBackup: async () => {
+      // 整库密文原样导出：不需要密钥，也不产生任何明文
+      const result = await readWholeDB();
+      return { filename: backupFilename(false), text: JSON.stringify(result, null, 2) };
+    },
+
+    exportPlaintextBackup: async () => {
+      const key = requireSessionKey();
+      const db = await readWholeDB();
+      const credentials = Array.isArray(db.credentials) ? db.credentials : [];
+
+      // 先全部解密到内存；任何一条失败都整体抛错（调用方不会落文件）
+      const plainCredentials = [];
+      for (const credential of credentials) {
+        const password = await decryptField(key, credential.password);
+        const note = await decryptField(key, credential.note);
+        plainCredentials.push({ ...credential, password, note });
+      }
+
+      const plaintextDB = { ...db, credentials: plainCredentials };
+      return { filename: backupFilename(true), text: JSON.stringify(plaintextDB, null, 2) };
+    },
+
+    /* ---------- 只读校验（绝不写盘） ---------- */
+
+    inspectBackup: async (text) => {
+      const parsed = parseBackup(text);
+      if (!parsed.ok) return parsed;
+      return {
+        ok: true,
+        db: parsed.db,
+        summary: parsed.summary,
+        hasSecurity: parsed.hasSecurity,
+        schemaVersion: parsed.schemaVersion
+      };
+    },
+
+    /* ---------- 写盘（用户选定模式后才被调用） ---------- */
+
+    importBackup: async (db, mode) => {
+      // 重新校验一次：不信任传入对象，避免绕过前端的只读预览
+      const normalized = parseBackup(JSON.stringify(db));
+      if (!normalized.ok) throw new Error('备份内容校验失败');
+
+      const localSecurity = await getSecurity();
+      const securityChanged = isSecurityChanged(localSecurity, normalized.db.security);
+
+      if (mode === 'overwrite') {
+        await replaceAll(normalized.db);
+      } else {
+        await mergeInto(mergeDB, normalized.db);
+      }
+
+      if (securityChanged) {
+        // 备份携带了不同且有效的凭据：当前会话密钥已与新库不匹配，必须立即锁定
+        lockBecauseSecurityChanged();
+        return { securityChanged: true };
+      }
+
+      // security 未变更：保持解锁，让当前页刷新到新数据
+      limiter.reset();
+      PAGE_ENTER[state.currentPage ?? '']?.();
+      return { securityChanged: false };
+    }
+  };
+}
+
+/**
+ * 取当前会话密钥；未解锁时抛错（备份操作只可能在解锁状态下触发）。
+ * @returns {CryptoKey}
+ */
+function requireSessionKey() {
+  if (!sessionKey) throw new Error('会话已锁定，请重新解锁');
+  return sessionKey;
+}
+
+/** 导入导致主密码变更时：清密钥、停计时、关弹窗、回到解锁页 */
+function lockBecauseSecurityChanged() {
+  stopAutoLockTimer();
+  clearSessionKey();
+  resetAuthForms();
+  resetDataModules();
+  limiter.reset();
+  state.lock = LOCK_STATE.LOCKED;
+  showGate('LOCKED');
+  document.title = 'LifeKeeper — 解锁';
+  byId('unlock-password')?.focus();
 }
 
 /* --------------------------------------------------------------------------

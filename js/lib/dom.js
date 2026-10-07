@@ -466,3 +466,38 @@ export function bindPasswordToggle(pair) {
 export function cooldownText(remainingMs) {
   return formatRemainingSeconds(remainingMs);
 }
+
+/* --------------------------------------------------------------------------
+ * 本地文件下载（导出备份用）
+ * --------------------------------------------------------------------------
+ * 纯本地操作：Blob + 临时 object URL + 隐藏 <a download>，
+ * 不发起任何网络请求；用完立即 revokeObjectURL，避免 URL 泄漏。
+ * -------------------------------------------------------------------------- */
+
+/**
+ * 把文本保存为本地文件。
+ * @param {string} filename
+ * @param {string} text
+ * @returns {boolean} 是否成功触发下载
+ */
+export function downloadTextFile(filename, text) {
+  if (typeof filename !== 'string' || filename.length === 0) return false;
+  if (typeof text !== 'string') return false;
+  if (typeof URL === 'undefined' || typeof URL.createObjectURL !== 'function') return false;
+
+  const blob = new Blob([text], { type: 'application/json;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const link = /** @type {HTMLAnchorElement} */ (createEl('a'));
+  link.href = url;
+  link.download = filename;
+  link.rel = 'noopener';
+  link.style.display = 'none';
+
+  document.body.append(link);
+  link.click();
+  link.remove();
+
+  // 立即回收，避免 object URL 常驻内存
+  URL.revokeObjectURL(url);
+  return true;
+}

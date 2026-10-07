@@ -548,6 +548,205 @@ export function latestByDate(list, count = 3) {
 }
 
 /* --------------------------------------------------------------------------
+ * 备份：解析校验与合并（纯逻辑，不触碰存储与密钥）
+ * --------------------------------------------------------------------------
+ * 备份文件就是「整库快照」——与 life-keeper:db:v1 的 JSON 完全同构。
+ * 加密备份里 credentials 的 password/note 仍是 { iv, ct } 密文，
+ * 因此导出加密备份不需要密钥；只有明文导出才需要 sessionKey（在 main.js 完成）。
+ * -------------------------------------------------------------------------- */
+
+/** 备份文件约定的 app 标识 */
+export const BACKUP_APP_ID = 'life-keeper';
+
+/** 当前支持的 schemaVersion（更高版本一律拒绝，避免误解未知结构） */
+export const BACKUP_SCHEMA_VERSION = 1;
+
+/** 备份解析失败的错误码 */
+export const BACKUP_ERRORS = {
+  INVALID_JSON: 'INVALID_JSON',
+  NOT_LIFEKEEPER: 'NOT_LIFEKEEPER',
+  UNSUPPORTED_VERSION: 'UNSUPPORTED_VERSION',
+  INVALID_SHAPE: 'INVALID_SHAPE'
+};
+
+/** 四个业务集合（与 storage.js 的 COLLECTIONS 保持一致） */
+const BACKUP_COLLECTIONS = ['transactions', 'diaries', 'items', 'credentials'];
+
+/**
+ * 校验 verifier 是否为合法密文结构（与 storage.isValidVerifier 同规则）。
+ * 这里再写一份是为了让 utils 不依赖 storage（保持 lib 层的单向依赖）。
+ * @param {unknown} value
+ * @returns {boolean}
+ */
+function isValidCipher(value) {
+  return (
+    isPlainObject(value) &&
+    typeof (/** @type {any} */ (value).iv) === 'string' &&
+    /** @type {any} */ (value).iv.length > 0 &&
+    typeof (/** @type {any} */ (value).ct) === 'string' &&
+    /** @type {any} */ (value).ct.length > 0
+  );
+}
+
+/**
+ * 解析并校验备份文本。只读，绝不写盘。
+ * @param {string} text
+ * @returns {{ok: true, db: object, summary: {transactions: number, diaries: number, items: number, credentials: number}, hasSecurity: boolean, schemaVersion: number}
+ *          | {ok: false, code: string}}
+ */
+export function parseBackup(text) {
+  if (typeof text !== 'string' || text.trim().length === 0) {
+    return { ok: false, code: BACKUP_ERRORS.INVALID_JSON };
+  }
+
+  let parsed;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    return { ok: false, code: BACKUP_ERRORS.INVALID_JSON };
+  }
+
+  if (!isPlainObject(parsed)) {
+    return { ok: false, code: BACKUP_ERRORS.NOT_LIFEKEEPER };
+  }
+
+  /** @type {Record<string, any>} */
+  const raw = /** @type {any} */ (parsed);
+
+  // app 标识：必须存在且匹配
+  if (typeof raw.app !== 'string' || raw.app !== BACKUP_APP_ID) {
+    return { ok: false, code: BACKUP_ERRORS.NOT_LIFEKEEPER };
+  }
+
+  // schemaVersion：必须是正整数且不高于当前支持版本
+  if (!Number.isInteger(raw.schemaVersion) || raw.schemaVersion < 1) {
+    return { ok: false, code: BACKUP_ERRORS.UNSUPPORTED_VERSION };
+  }
+  if (raw.schemaVersion > BACKUP_SCHEMA_VERSION) {
+    return { ok: false, code: BACKUP_ERRORS.UNSUPPORTED_VERSION };
+  }
+
+  // 四个集合必须都是数组（缺失视为空数组，缺字段不算损坏）
+  /** @type {Record<string, any[]>} */
+  const collections = {};
+  for (const name of BACKUP_COLLECTIONS) {
+    const value = raw[name];
+    if (value === undefined || value === null) {
+      collections[name] = [];
+      continue;
+    }
+    if (!Array.isArray(value)) {
+      return { ok: false, code: BACKUP_ERRORS.INVALID_SHAPE };
+    }
+    collections[name] = value.filter(isPlainObject);
+  }
+
+  const security = isPlainObject(raw.security) ? /** @type {any} */ (raw.security) : {};
+  const hasSecurity = typeof security.salt === 'string' && security.salt.length > 0 && isValidCipher(security.verifier);
+
+  return {
+    ok: true,
+    db: {
+      app: BACKUP_APP_ID,
+      schemaVersion: BACKUP_SCHEMA_VERSION,
+      meta: isPlainObject(raw.meta) ? raw.meta : {},
+      security,
+      settings: isPlainObject(raw.settings) ? raw.settings : { theme: 'system', currency: 'CNY' },
+      ...collections
+    },
+    summary: {
+      transactions: collections.transactions.length,
+      diaries: collections.diaries.length,
+      items: collections.items.length,
+      credentials: collections.credentials.length
+    },
+    hasSecurity,
+    schemaVersion: raw.schemaVersion
+  };
+}
+
+/**
+ * 合并两个库：按 id 合并，同 id 以 incoming 为准，其余保留 current。
+ * 四个集合互不污染；条目做浅拷贝，避免调用方后续改动影响到入参。
+ * @param {object} current
+ * @param {object} incoming
+ * @returns {object} 合并后的新库（不修改任何入参）
+ */
+export function mergeDB(current, incoming) {
+  const base = isPlainObject(current) ? /** @type {any} */ (current) : {};
+  const add = isPlainObject(incoming) ? /** @type {any} */ (incoming) : {};
+
+  /** @type {any} */
+  const merged = deepClone(base);
+
+  for (const name of BACKUP_COLLECTIONS) {
+    const currentList = Array.isArray(base[name]) ? base[name] : [];
+    const incomingList = Array.isArray(add[name]) ? add[name] : [];
+
+    // 以 id 为键：先用现有条目铺底，再用备份条目覆盖同 id 的位置
+    /** @type {Map<string, any>} */
+    const byId = new Map();
+    /** @type {any[]} */
+    const withoutId = [];
+
+    for (const entry of currentList) {
+      if (!isPlainObject(entry)) continue;
+      const id = typeof entry.id === 'string' && entry.id ? entry.id : '';
+      if (id) byId.set(id, deepClone(entry));
+      else withoutId.push(deepClone(entry));
+    }
+
+    /** @type {any[]} */
+    const appended = [];
+    for (const entry of incomingList) {
+      if (!isPlainObject(entry)) continue;
+      const id = typeof entry.id === 'string' && entry.id ? entry.id : '';
+      if (id) {
+        if (byId.has(id)) byId.set(id, deepClone(entry)); // 同 id：备份为准
+        else appended.push(deepClone(entry)); // 新 id：追加
+      } else {
+        appended.push(deepClone(entry));
+      }
+    }
+
+    merged[name] = [...withoutId, ...byId.values(), ...appended];
+  }
+
+  // security / settings：由调用方决定是否替换，这里只做结构保底
+  merged.security = isPlainObject(base.security) ? deepClone(base.security) : {};
+  merged.settings = isPlainObject(base.settings) ? deepClone(base.settings) : { theme: 'system', currency: 'CNY' };
+  merged.app = BACKUP_APP_ID;
+  merged.schemaVersion = Number.isInteger(base.schemaVersion) ? base.schemaVersion : BACKUP_SCHEMA_VERSION;
+  merged.meta = isPlainObject(base.meta) ? deepClone(base.meta) : {};
+
+  return merged;
+}
+
+/**
+ * 备份自带的 security 是否「有效且与本地不同」。
+ * 用于决定导入后是否需要锁定（换了主密码就必须重新解锁）。
+ * @param {object} localSecurity
+ * @param {object} incomingSecurity
+ * @returns {boolean}
+ */
+export function isSecurityChanged(localSecurity, incomingSecurity) {
+  const local = isPlainObject(localSecurity) ? /** @type {any} */ (localSecurity) : {};
+  const incoming = isPlainObject(incomingSecurity) ? /** @type {any} */ (incomingSecurity) : {};
+
+  const incomingValid =
+    typeof incoming.salt === 'string' && incoming.salt.length > 0 && isValidCipher(incoming.verifier);
+  if (!incomingValid) return false; // 备份没带可用凭据 → 不算变更
+
+  if (typeof local.salt !== 'string' || local.salt !== incoming.salt) return true;
+  if (!isValidCipher(local.verifier)) return true;
+
+  return (
+    /** @type {any} */ (local.verifier).iv !== incoming.verifier.iv ||
+    /** @type {any} */ (local.verifier).ct !== incoming.verifier.ct
+  );
+}
+
+/* --------------------------------------------------------------------------
  * 时间：本地输入 ↔ ISO 8601（带偏移）
  * -------------------------------------------------------------------------- */
 

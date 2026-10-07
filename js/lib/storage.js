@@ -329,6 +329,17 @@ export async function isInitialized() {
  * 璇诲彇鏁翠釜闆嗗悎锛堣繑鍥炴繁鎷疯礉锛岃皟鐢ㄦ柟鏀逛笉鍔ㄥ簱鍐呮暟鎹級銆? * @param {string} collection
  * @returns {Promise<any[]>}
  */
+/**
+ * 读取整个库（深拷贝）。
+ * 仅用于「导出备份」这类需要整库快照的场景；
+ * 业务模块请用 getCollection / getById。
+ * @returns {Promise<object>} 规范化后的完整库
+ */
+export async function readWholeDB() {
+  const db = (await readDB()) ?? createEmptyDB();
+  return deepClone(db);
+}
+
 export async function getCollection(collection) {
   assertCollection(collection);
   const db = (await readDB()) ?? createEmptyDB();
@@ -502,6 +513,39 @@ export async function replaceAll(incoming) {
 
   await writeDB(normalized);
   return deepClone(normalized);
+}
+
+/**
+ * 按 id 合并写盘（导入备份的「合并」模式）。
+ * 条目级规则由调用方传入的 merge 决定（见 utils.mergeDB），本函数只负责
+ * 「读现状 → 合并 → 一次写回」，因此合并过程中的任何异常都不会留下半成品。
+ *
+ * security 兜底：合并结果里若没有有效凭据，保留本地现有 security，
+ * 避免一次合并把本机锁屏凭据抹掉。
+ * @param {(current: object, incoming: object) => object} merge
+ * @param {object} incoming 已校验的备份库
+ * @returns {Promise<object>} 落库后的完整库
+ */
+export async function mergeInto(merge, incoming) {
+  if (typeof merge !== 'function') throw new StorageError('INVALID_ARGUMENT', 'merge');
+  if (!isPlainObject(incoming)) throw new StorageError('INVALID_ARGUMENT', 'db');
+
+  const current = (await readDB()) ?? createEmptyDB();
+  const merged = merge(current, incoming);
+
+  if (!isPlainObject(merged)) throw new StorageError('INVALID_ARGUMENT', 'merged');
+
+  const security = isPlainObject(merged.security) ? /** @type {any} */ (merged.security) : {};
+  const mergedHasSecurity =
+    typeof security.salt === 'string' && security.salt.length > 0 && isValidVerifier(security.verifier);
+  if (!mergedHasSecurity) merged.security = current.security;
+
+  merged.app = 'life-keeper';
+  merged.meta = { ...(merged.meta ?? {}), updatedAt: nowIso() };
+  if (!merged.meta.createdAt) merged.meta.createdAt = current.meta?.createdAt ?? nowIso();
+
+  await writeDB(merged);
+  return deepClone(merged);
 }
 
 /**
