@@ -26,7 +26,7 @@ import {
   validatePasswordInput,
   verifyMasterPassword
 } from './lib/auth.js';
-import { isCryptoAvailable } from './lib/crypto.js';
+import { isCryptoAvailable, decrypt, encrypt } from './lib/crypto.js';
 import {
   bindPasswordToggle,
   byId,
@@ -192,6 +192,10 @@ function resetDataModules() {
 
   const resetItems = /** @type {any} */ (itemsModule).resetItems;
   if (typeof resetItems === 'function') resetItems();
+
+  // 密码保管：收起所有明文显示、关闭未完成的编辑弹窗
+  const resetVault = /** @type {any} */ (vaultModule).resetVault;
+  if (typeof resetVault === 'function') resetVault();
 }
 
 /* --------------------------------------------------------------------------
@@ -394,6 +398,10 @@ const PAGE_ENTER = {
   },
   items: () => {
     const refresh = /** @type {any} */ (itemsModule).renderItems;
+    if (typeof refresh === 'function') void refresh();
+  },
+  vault: () => {
+    const refresh = /** @type {any} */ (vaultModule).renderVault;
     if (typeof refresh === 'function') void refresh();
   }
 };
@@ -736,6 +744,105 @@ function mountItemsModule() {
 }
 
 /* --------------------------------------------------------------------------
+ * 密码保管模块装配（M5 加密边界）
+ * -------------------------------------------------------------------------- */
+
+/**
+ * 把明文备注规范成密文结构。
+ * 空备注也要加密成密文，避免「空字符串 = 未加密」这种可区分的形态。
+ * @param {CryptoKey} key
+ * @param {unknown} note
+ * @returns {Promise<{iv: string, ct: string}>}
+ */
+async function encryptNote(key, note) {
+  return encrypt(key, typeof note === 'string' ? note : '');
+}
+
+/**
+ * 密文结构 → 明文字符串；结构不对（非 {iv,ct}）时按空串处理。
+ * @param {CryptoKey} key
+ * @param {unknown} payload
+ * @returns {Promise<string>}
+ */
+async function decryptText(key, payload) {
+  if (
+    !payload ||
+    typeof payload !== 'object' ||
+    typeof (/** @type {any} */ (payload).iv) !== 'string' ||
+    typeof (/** @type {any} */ (payload).ct) !== 'string'
+  ) {
+    return '';
+  }
+  return decrypt(key, /** @type {{iv: string, ct: string}} */ (payload));
+}
+
+/**
+ * 装配密码保管模块。
+ *
+ * 这里是本项目的**加解密边界**：vault.js 只拿明文与密文之间的「搬运」接口，
+ * 既不接触 CryptoKey，也不 import crypto.js / storage.js。
+ * 明文只在函数的局部变量里存在，写完即出栈，不做任何缓存。
+ */
+function mountVaultModule() {
+  const mount = /** @type {any} */ (vaultModule).mountVault;
+  if (typeof mount !== 'function') return;
+
+  /** 取当前会话密钥；未解锁时说明调用时机有误，直接抛错而不是静默降级 */
+  const requireKey = () => {
+    if (!sessionKey) throw new Error('会话已锁定，请重新解锁');
+    return sessionKey;
+  };
+
+  mount({
+    getCredentials: () => getCollection('credentials'),
+
+    addCredential: async (entry) => {
+      const key = requireKey();
+      // 明文只在这一行的实参里出现；加密完成后 entry 立即失去引用
+      const password = await encrypt(key, entry.password);
+      const note = await encryptNote(key, entry.note);
+      return add('credentials', {
+        title: entry.title,
+        site: entry.site,
+        url: entry.url,
+        username: entry.username,
+        password,
+        note,
+        category: entry.category,
+        tags: entry.tags
+      });
+    },
+
+    updateCredential: async (id, entry) => {
+      const key = requireKey();
+      const password = await encrypt(key, entry.password);
+      const note = await encryptNote(key, entry.note);
+      return update('credentials', id, {
+        title: entry.title,
+        site: entry.site,
+        url: entry.url,
+        username: entry.username,
+        password,
+        note,
+        category: entry.category,
+        tags: entry.tags
+      });
+    },
+
+    revealCredential: async (cred) => {
+      const key = requireKey();
+      return {
+        password: await decryptText(key, cred?.password),
+        note: await decryptText(key, cred?.note)
+      };
+    },
+
+    removeCredential: (id) => remove('credentials', id),
+    notify: showToast
+  });
+}
+
+/* --------------------------------------------------------------------------
  * 启动
  * -------------------------------------------------------------------------- */
 
@@ -761,6 +868,7 @@ async function bootstrap() {
   mountAccountModule();
   mountDiaryModule();
   mountItemsModule();
+  mountVaultModule();
 
   // 清空数据入口：仅出现在「已锁定」与「数据损坏」两个门禁视图
   // （未初始化视图不显示该按钮；设置页入口由 settings 模块自己绑定）

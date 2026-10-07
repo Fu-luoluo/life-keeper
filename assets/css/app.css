@@ -2118,7 +2118,229 @@ html:not(.lk-ready) body {
 }
 
 /* --------------------------------------------------------------------------
-   21. 动效偏好 — DESIGN.md H.3：prefers-reduced-motion 下取消动效
+   21. 密码保管：首字符瓦片、掩码、复制反馈、生成器（DESIGN.md C / F）
+   -------------------------------------------------------------------------- */
+
+/* 36px 淡彩瓦片：内含名称首字符（textContent 写入，绝不拉取 favicon） */
+.lk-vault-tile {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  border-radius: var(--lk-radius-md);
+}
+
+.lk-vault-tile-sm {
+  width: 28px;
+  height: 28px;
+}
+
+.lk-vault-tile-text {
+  font-size: var(--lk-text-body-md);
+  line-height: 1;
+  font-weight: 600;
+}
+
+/* 条目行：{spacing.sm} {spacing.md} 内边距，末行无分割线 */
+.lk-cred-row {
+  display: flex;
+  align-items: center;
+  gap: var(--lk-spacing-md);
+  padding: var(--lk-spacing-sm) var(--lk-spacing-md);
+  border-bottom: 1px solid var(--lk-hairline-soft);
+  cursor: pointer;
+  transition: background-color var(--lk-motion-fast) var(--lk-ease);
+}
+
+.lk-cred-row:last-child {
+  border-bottom: 0;
+}
+
+.lk-cred-row:hover {
+  background-color: var(--lk-surface-soft);
+}
+
+.lk-cred-main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lk-spacing-xxs);
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+/* 主文本 {typography.body-md-medium} + {colors.charcoal}，单行省略 */
+.lk-cred-title {
+  font-size: var(--lk-text-body-md);
+  line-height: var(--lk-leading-body-md);
+  font-weight: 500;
+  color: var(--lk-charcoal);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lk-cred-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--lk-spacing-xs);
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+/* 副文本 {typography.body-sm} + {colors.steel} */
+.lk-cred-sub {
+  font-size: var(--lk-text-body-sm);
+  line-height: var(--lk-leading-body-sm);
+  color: var(--lk-steel);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 220px;
+}
+
+.lk-cred-aside {
+  display: flex;
+  align-items: center;
+  gap: var(--lk-spacing-xxs);
+  flex-shrink: 0;
+}
+
+/* 密码掩码：定宽 + 字距 2px（DESIGN.md F） */
+.lk-cred-password {
+  min-width: 96px;
+  text-align: right;
+  font-size: var(--lk-text-body-md);
+  line-height: var(--lk-leading-body-md);
+  letter-spacing: 2px;
+  color: var(--lk-slate);
+  font-variant-numeric: tabular-nums;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 显明状态：不再是掩码，去掉字距以便阅读 */
+.lk-cred-password[data-masked='false'] {
+  letter-spacing: normal;
+  color: var(--lk-ink);
+  font-weight: 500;
+  max-width: 220px;
+}
+
+/* 复制成功：图标变绿对勾（DESIGN.md F 的 1.5 秒反馈） */
+.lk-icon-btn[data-copied='1'] {
+  color: var(--lk-brand-green);
+}
+
+/* 密码生成器面板 */
+.lk-generator {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lk-spacing-sm);
+  padding: var(--lk-spacing-md);
+  background-color: var(--lk-surface);
+  border: 1px solid var(--lk-hairline);
+  border-radius: var(--lk-radius-lg);
+}
+
+.lk-generator-row {
+  display: flex;
+  align-items: center;
+  gap: var(--lk-spacing-sm);
+}
+
+.lk-generator-label {
+  flex-shrink: 0;
+  font-size: var(--lk-text-body-sm);
+  line-height: var(--lk-leading-body-sm);
+  font-weight: 500;
+  color: var(--lk-slate);
+}
+
+/* 滑杆：滑块与选中值用 {colors.primary}（DESIGN.md F） */
+.lk-range {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 6px;
+  margin: 0;
+  border-radius: var(--lk-radius-xs);
+  background-color: var(--lk-hairline);
+  accent-color: var(--lk-primary);
+  cursor: pointer;
+}
+
+.lk-generator-value {
+  flex-shrink: 0;
+  min-width: 24px;
+  text-align: right;
+  font-size: var(--lk-text-caption-bold);
+  line-height: var(--lk-leading-caption-bold);
+  font-weight: 600;
+  color: var(--lk-charcoal);
+  font-variant-numeric: tabular-nums;
+}
+
+.lk-generator-options {
+  display: flex;
+  align-items: center;
+  gap: var(--lk-spacing-md);
+  flex-wrap: wrap;
+}
+
+.lk-check-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--lk-spacing-xxs);
+  font-size: var(--lk-text-body-sm);
+  line-height: var(--lk-leading-body-sm);
+  color: var(--lk-slate);
+  cursor: pointer;
+}
+
+/* 勾选框：勾选态用 {colors.primary}（DESIGN.md F） */
+.lk-check {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--lk-primary);
+  cursor: pointer;
+}
+
+.lk-generator-result {
+  display: flex;
+  align-items: center;
+  gap: var(--lk-spacing-xs);
+}
+
+/* 生成结果：等宽风格展示（DESIGN.md F） */
+.lk-generated {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: var(--lk-spacing-xs) var(--lk-spacing-sm);
+  background-color: var(--lk-canvas);
+  border: 1px solid var(--lk-hairline);
+  border-radius: var(--lk-radius-sm);
+  color: var(--lk-ink);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: var(--lk-text-body-sm);
+  line-height: var(--lk-leading-body-sm);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  user-select: all;
+}
+
+.lk-generator-hint {
+  margin: 0;
+  font-size: var(--lk-text-caption);
+  line-height: var(--lk-leading-caption);
+  color: var(--lk-stone);
+}
+
+/* --------------------------------------------------------------------------
+   22. 动效偏好 — DESIGN.md H.3：prefers-reduced-motion 下取消动效
    -------------------------------------------------------------------------- */
 @media (prefers-reduced-motion: reduce) {
   *,

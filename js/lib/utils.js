@@ -317,6 +317,89 @@ export function addYearsToDate(dateKey, years) {
 }
 
 /* --------------------------------------------------------------------------
+ * 密码生成（纯逻辑；随机源为 crypto.getRandomValues）
+ * -------------------------------------------------------------------------- */
+
+/** 生成器长度可调范围（DESIGN.md F：长度滑杆 12–24） */
+export const PASSWORD_LENGTH_MIN = 12;
+export const PASSWORD_LENGTH_MAX = 24;
+export const PASSWORD_LENGTH_DEFAULT = 16;
+
+/** 生成器的固定小写字母池（大、小写由 upper 开关一并控制） */
+const PASSWORD_LOWER = 'abcdefghijklmnopqrstuvwxyz';
+const PASSWORD_UPPER = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+const PASSWORD_DIGITS = '0123456789';
+const PASSWORD_SYMBOLS = '!@#$%^&*()-_=+[]{};:,.?';
+
+/**
+ * 拒绝采样：返回 [0, bound) 上的均匀随机整数。
+ *
+ * 不能直接用 value % bound——2^32 通常不是 bound 的整数倍，
+ * 取模会让较小的余数区间多分到一些样本，产生可观测的偏差。
+ * 这里把采样空间截断到 bound 的最大整数倍，落在尾巴上的样本直接丢弃重取。
+ * @param {number} bound
+ * @returns {number}
+ */
+function randomIntBelow(bound) {
+  if (!Number.isInteger(bound) || bound <= 0) {
+    throw new RangeError('bound must be a positive integer');
+  }
+  const limit = Math.floor(0x1_0000_0000 / bound) * bound;
+  const buffer = new Uint32Array(1);
+  let value = 0;
+  do {
+    globalThis.crypto.getRandomValues(buffer);
+    value = buffer[0];
+  } while (value >= limit);
+  return value % bound;
+}
+
+/**
+ * 生成随机密码。
+ * 多字符集时先给每个启用的字符集各放一个字符（保证「勾选了就一定有该字符」），
+ * 其余位从合并池中取，最后整体洗牌。
+ * @param {{length?: number, upper?: boolean, digits?: boolean, symbols?: boolean}} [options]
+ * @returns {string}
+ */
+export function generatePassword(options = {}) {
+  const requested = Number.isFinite(options.length) ? Math.trunc(options.length) : PASSWORD_LENGTH_DEFAULT;
+  const length = Math.min(PASSWORD_LENGTH_MAX, Math.max(PASSWORD_LENGTH_MIN, requested));
+
+  const upper = options.upper ?? true;
+  const digits = options.digits ?? true;
+  const symbols = options.symbols ?? true;
+
+  /** @type {string[]} */
+  const pools = [PASSWORD_LOWER];
+  if (upper) pools.push(PASSWORD_UPPER);
+  if (digits) pools.push(PASSWORD_DIGITS);
+  if (symbols) pools.push(PASSWORD_SYMBOLS);
+
+  const merged = pools.join('');
+  /** @type {number[]} */
+  const codes = [];
+
+  // 每个启用的字符集先占一位（自身内部也做拒绝采样，避免集合内偏差）
+  for (const pool of pools) {
+    if (codes.length >= length) break;
+    codes.push(pool.charCodeAt(randomIntBelow(pool.length)));
+  }
+  while (codes.length < length) {
+    codes.push(merged.charCodeAt(randomIntBelow(merged.length)));
+  }
+
+  // Fisher–Yates 洗牌，避免「首位总是小写」这类可预测结构
+  for (let i = codes.length - 1; i > 0; i -= 1) {
+    const j = randomIntBelow(i + 1);
+    const swap = codes[i];
+    codes[i] = codes[j];
+    codes[j] = swap;
+  }
+
+  return String.fromCharCode(...codes);
+}
+
+/* --------------------------------------------------------------------------
  * 时间：本地输入 ↔ ISO 8601（带偏移）
  * -------------------------------------------------------------------------- */
 
