@@ -400,6 +400,154 @@ export function generatePassword(options = {}) {
 }
 
 /* --------------------------------------------------------------------------
+ * 收支聚合（仪表盘的纯逻辑层；输入输出都是普通数据，便于推演与测试）
+ * --------------------------------------------------------------------------
+ * 约定：
+ *   - 金额一律以「分」为整数参与计算；
+ *   - 月份的归组一律用「本地日期」，因此入参是 ISO 8601 带偏移字符串，
+ *     内部用 localMonthKeyFromIso / localDayKeyFromIso 换算（不涉 UTC 截断）；
+ *   - 所有函数对残缺数据（缺字段、非法日期）都做跳过而不是抛错。
+ * -------------------------------------------------------------------------- */
+
+/**
+ * 取某月全部流水（不做类型/分类过滤）。
+ * @param {object[]} transactions
+ * @param {string} monthKey 形如 "2026-10"
+ * @returns {object[]}
+ */
+export function transactionsOfMonth(transactions, monthKey) {
+  if (!Array.isArray(transactions)) return [];
+  return transactions.filter((entry) => localMonthKeyFromIso(entry?.date) === monthKey);
+}
+
+/**
+ * 月度汇总：收入 / 支出 / 结余（结余 = 收入 − 支出）。
+ * @param {object[]} transactions
+ * @returns {{income: number, expense: number, balance: number}}
+ */
+export function summarizeTransactions(transactions) {
+  let income = 0;
+  let expense = 0;
+  for (const entry of Array.isArray(transactions) ? transactions : []) {
+    const cents = Number.isFinite(entry?.amountCents) ? Math.trunc(entry.amountCents) : 0;
+    if (entry?.type === 'income') income += cents;
+    else expense += cents;
+  }
+  return { income, expense, balance: income - expense };
+}
+
+/**
+ * 分类占比（默认只统计支出）。
+ * 结果按金额倒序；相同金额按分类名排序，保证渲染稳定。
+ * percent 为占总额的百分比（0–100，保留一位小数）；
+ * 总额为 0 时返回空数组。
+ * @param {object[]} transactions
+ * @param {{type?: 'expense' | 'income'}} [options]
+ * @returns {Array<{category: string, amount: number, percent: number}>}
+ */
+export function categoryBreakdown(transactions, options = {}) {
+  const type = options.type ?? 'expense';
+  /** @type {Map<string, number>} */
+  const totals = new Map();
+  let sum = 0;
+
+  for (const entry of Array.isArray(transactions) ? transactions : []) {
+    if (entry?.type !== type) continue;
+    const cents = Number.isFinite(entry?.amountCents) ? Math.trunc(entry.amountCents) : 0;
+    const category = typeof entry?.category === 'string' && entry.category ? entry.category : '其他';
+    totals.set(category, (totals.get(category) ?? 0) + cents);
+    sum += cents;
+  }
+
+  if (sum <= 0) return [];
+
+  return [...totals.entries()]
+    .map(([category, amount]) => ({
+      category,
+      amount,
+      percent: Math.round((amount / sum) * 1000) / 10
+    }))
+    .sort((a, b) => b.amount - a.amount || a.category.localeCompare(b.category, 'zh-Hans-CN'));
+}
+
+/**
+ * 生成以 endMonthKey 结尾、向前 count 个月的连续月份键（升序）。
+ * @param {string} endMonthKey 形如 "2026-10"
+ * @param {number} [count]
+ * @returns {string[]} 形如 ["2026-05", ..., "2026-10"]
+ */
+export function monthKeysEndingAt(endMonthKey, count = 6) {
+  if (!/^\d{4}-\d{2}$/.test(String(endMonthKey)) || !Number.isInteger(count) || count < 1) return [];
+  const keys = [];
+  for (let offset = count - 1; offset >= 0; offset -= 1) {
+    const key = shiftMonthKey(endMonthKey, -offset);
+    if (key) keys.push(key);
+  }
+  return keys;
+}
+
+/**
+ * 近 N 个月收支分桶（默认 6 个月，以 endMonthKey 结尾）。
+ * 无数据的月份同样返回（收入/支出为 0），供图表画空柱位。
+ * @param {object[]} transactions
+ * @param {string} endMonthKey
+ * @param {number} [count]
+ * @returns {Array<{monthKey: string, label: string, income: number, expense: number}>}
+ */
+export function monthlyTrendBuckets(transactions, endMonthKey, count = 6) {
+  const keys = monthKeysEndingAt(endMonthKey, count);
+  return keys.map((monthKey) => {
+    const summary = summarizeTransactions(transactionsOfMonth(transactions, monthKey));
+    return {
+      monthKey,
+      label: `${Number(monthKey.slice(5, 7))}月`,
+      income: summary.income,
+      expense: summary.expense
+    };
+  });
+}
+
+/**
+ * 环比：当前值相对上期值的变化。
+ *   - 上期为 0（或没有上期数据）→ percent 为 null，direction 为 'none'
+ *     （界面据此隐藏环比文案，避免出现「+∞%」）
+ *   - 上期非 0 → percent 为保留一位小数的百分比（可正可负），
+ *     direction 为 'up' | 'down' | 'flat'
+ * @param {number} current
+ * @param {number} previous
+ * @returns {{percent: number | null, direction: 'up' | 'down' | 'flat' | 'none', delta: number}}
+ */
+export function periodOverPeriod(current, previous) {
+  const safeCurrent = Number.isFinite(current) ? current : 0;
+  const safePrevious = Number.isFinite(previous) ? previous : 0;
+  const delta = safeCurrent - safePrevious;
+
+  if (safePrevious === 0) {
+    return { percent: null, direction: 'none', delta };
+  }
+
+  const percent = Math.round((delta / Math.abs(safePrevious)) * 1000) / 10;
+  let direction = 'flat';
+  if (percent > 0) direction = 'up';
+  else if (percent < 0) direction = 'down';
+  return { percent, direction, delta };
+}
+
+/**
+ * 取最近 N 条记录（按日期倒序）。
+ * @param {object[]} list
+ * @param {number} [count]
+ * @returns {object[]}
+ */
+export function latestByDate(list, count = 3) {
+  if (!Array.isArray(list)) return [];
+  return [...list]
+    .filter((entry) => localDayKeyFromIso(entry?.date) !== '')
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    .slice(0, Math.max(0, count));
+}
+
+/* --------------------------------------------------------------------------
  * 时间：本地输入 ↔ ISO 8601（带偏移）
  * -------------------------------------------------------------------------- */
 

@@ -935,3 +935,10 @@ export function resetItems() {
 }
 
 export { render as renderItems };
+
+/**
+ * 供仪表盘快捷操作调用：直接打开「添加物品」Modal。
+ */
+export function openNewItem() {
+  openEditor();
+}

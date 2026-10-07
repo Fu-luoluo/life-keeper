@@ -196,6 +196,9 @@ function resetDataModules() {
   // 密码保管：收起所有明文显示、关闭未完成的编辑弹窗
   const resetVault = /** @type {any} */ (vaultModule).resetVault;
   if (typeof resetVault === 'function') resetVault();
+
+  const resetDashboard = /** @type {any} */ (dashboardModule).resetDashboard;
+  if (typeof resetDashboard === 'function') resetDashboard();
 }
 
 /* --------------------------------------------------------------------------
@@ -388,6 +391,10 @@ function navigateTo(pageId, options = {}) {
  * @type {Record<string, () => void>}
  */
 const PAGE_ENTER = {
+  dashboard: () => {
+    const refresh = /** @type {any} */ (dashboardModule).renderDashboard;
+    if (typeof refresh === 'function') void refresh();
+  },
   account: () => {
     const refresh = /** @type {any} */ (accountModule).renderAccount;
     if (typeof refresh === 'function') void refresh();
@@ -843,6 +850,40 @@ function mountVaultModule() {
 }
 
 /* --------------------------------------------------------------------------
+ * 仪表盘模块装配
+ * -------------------------------------------------------------------------- */
+
+/**
+ * 装配仪表盘（注入模式：dashboard.js 不 import storage.js / main.js）。
+ * 快捷动作走「先切页、再打开对应 Modal」——通过各模块新增的 openComposer 入口，
+ * 因此不需要在 dashboard.js 里重复构造任何表单。
+ */
+function mountDashboardModule() {
+  const mount = /** @type {any} */ (dashboardModule).mountDashboard;
+  if (typeof mount !== 'function') return;
+
+  /** 切到目标页并调用该模块的「新建」入口 */
+  const quickAction = (pageId, openerName) => {
+    navigateTo(pageId);
+    const opener = /** @type {any} */ (PAGES[pageId]?.module)?.[openerName];
+    if (typeof opener === 'function') opener();
+  };
+
+  mount({
+    getTransactions: () => getCollection('transactions'),
+    getDiaries: () => getCollection('diaries'),
+    getItems: () => getCollection('items'),
+    getCredentials: () => getCollection('credentials'),
+    quickAddTransaction: () => quickAction('account', 'openNewTransaction'),
+    quickWriteDiary: () => quickAction('diary', 'openNewDiaryEntry'),
+    quickAddItem: () => quickAction('items', 'openNewItem'),
+    quickAddCredential: () => quickAction('vault', 'openNewCredential'),
+    navigateTo: (pageId) => navigateTo(pageId),
+    notify: showToast
+  });
+}
+
+/* --------------------------------------------------------------------------
  * 启动
  * -------------------------------------------------------------------------- */
 
@@ -869,6 +910,7 @@ async function bootstrap() {
   mountDiaryModule();
   mountItemsModule();
   mountVaultModule();
+  mountDashboardModule();
 
   // 清空数据入口：仅出现在「已锁定」与「数据损坏」两个门禁视图
   // （未初始化视图不显示该按钮；设置页入口由 settings 模块自己绑定）

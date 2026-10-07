@@ -1234,3 +1234,10 @@ export function resetVault() {
 }
 
 export { render as renderVault };
+
+/**
+ * 供仪表盘快捷操作调用：直接打开「添加账号」Modal。
+ */
+export function openNewCredential() {
+  void openEditor();
+}

@@ -995,3 +995,11 @@ export function resetDiary() {
 }
 
 export { render as renderDiary };
+
+/**
+ * 供仪表盘快捷操作调用：直接打开「写记录」编辑器（会先尝试恢复草稿）。
+ * 与页头按钮走同一条路径，因此草稿恢复与 Toast 行为完全一致。
+ */
+export function openNewDiaryEntry() {
+  void openNewDiary();
+}

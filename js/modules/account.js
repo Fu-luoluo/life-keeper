@@ -19,6 +19,12 @@
 
 import { byId, createEl, openConfirmDialog, openModal, setText } from '../lib/dom.js';
 import {
+  ACCOUNTS as ACCOUNTS_SHARED,
+  CATEGORIES as CATEGORIES_SHARED,
+  DEFAULT_CATEGORY as DEFAULT_CATEGORY_SHARED,
+  FALLBACK_CATEGORY as FALLBACK_CATEGORY_SHARED
+} from '../lib/categories.js';
+import {
   currentMonthKey,
   formatCurrency,
   formatDayGroupTitle,
@@ -66,41 +72,19 @@ const TYPES = [
 const TYPE_LABEL = { expense: '支出', income: '收入' };
 
 /** 账户选项（PRD M2 默认账户；自定义管理属后续版本） */
-const ACCOUNTS = ['现金', '储蓄卡', '支付宝', '微信'];
+const ACCOUNTS = ACCOUNTS_SHARED;
 
 /**
- * 分类定义：
- *   tint = 图标容器底色（{colors.card-tint-*}）
- *   ink  = 图标颜色（只用 DESIGN.md 已定义的深色 Token，参照 badge-tag-* 的配色思路）
- *   icon = 16px 线性小图标的形状 key
+ * 分类定义（tint / ink / icon / chartColor）统一放在 js/lib/categories.js，
+ * 与仪表盘的 donut 固定映射共用同一份真值，避免两处漂移。
  */
-const CATEGORIES = {
-  expense: [
-    { name: '餐饮', tint: 'peach', ink: 'brand-orange-deep', icon: 'meal' },
-    { name: '交通', tint: 'sky', ink: 'link-blue', icon: 'transport' },
-    { name: '购物', tint: 'rose', ink: 'brand-pink-deep', icon: 'shopping' },
-    { name: '学习', tint: 'lavender', ink: 'brand-purple-800', icon: 'study' },
-    { name: '娱乐', tint: 'yellow', ink: 'brand-brown', icon: 'fun' },
-    { name: '医疗', tint: 'mint', ink: 'brand-green', icon: 'medical' },
-    { name: '居家', tint: 'cream', ink: 'charcoal', icon: 'home' },
-    { name: '人情', tint: 'yellow-bold', ink: 'brand-brown', icon: 'gift' },
-    { name: '其他', tint: 'gray', ink: 'slate', icon: 'more' }
-  ],
-  income: [
-    { name: '工资补助', tint: 'mint', ink: 'brand-green', icon: 'salary' },
-    { name: '兼职', tint: 'sky', ink: 'link-blue', icon: 'parttime' },
-    { name: '奖学金', tint: 'lavender', ink: 'brand-purple-800', icon: 'award' },
-    { name: '红包', tint: 'rose', ink: 'brand-pink-deep', icon: 'redpacket' },
-    { name: '投资', tint: 'yellow', ink: 'brand-brown', icon: 'invest' },
-    { name: '其他', tint: 'gray', ink: 'slate', icon: 'more' }
-  ]
-};
+const CATEGORIES = CATEGORIES_SHARED;
 
 /** 各类型的默认分类（PRD M2：支出 = 餐饮、收入 = 工资补助） */
-const DEFAULT_CATEGORY = { expense: '餐饮', income: '工资补助' };
+const DEFAULT_CATEGORY = DEFAULT_CATEGORY_SHARED;
 
 /** 找不到分类定义时的兜底 */
-const FALLBACK_CATEGORY = { tint: 'gray', ink: 'slate', icon: 'more' };
+const FALLBACK_CATEGORY = FALLBACK_CATEGORY_SHARED;
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
@@ -1049,3 +1033,10 @@ export function resetAccount() {
 
 /** 重新渲染当前页面（`render` 不在外部使用，仅为保持模块自洽而保留此说明） */
 export { render as renderAccount };
+
+/**
+ * 供仪表盘快捷操作调用：直接打开「记一笔」Modal。
+ */
+export function openNewTransaction() {
+  openComposer();
+}

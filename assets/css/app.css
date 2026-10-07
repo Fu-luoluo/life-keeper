@@ -86,6 +86,8 @@
      注意：CSS 自定义属性名只能由字母/数字/连字符组成，
      因此这里用 --lk-text-* / --lk-leading-* / --lk-tracking-* 平面命名承接 {typography.*}，
      不使用 {typography.heading-5} 里的小数点，也不使用双冒号（双冒号命名会被浏览器整条丢弃）。 */
+  --lk-text-heading-2: 36px;
+  --lk-leading-heading-2: 1.2;
   --lk-text-heading-3: 28px;
   --lk-leading-heading-3: 1.25;
   --lk-text-heading-4: 22px;
@@ -151,6 +153,7 @@
 
 /* 设计 Token 的别名层：集中说明「哪个 CSS 变量对应 DESIGN.md 的哪个 {typography.*}」
    DESIGN.md 组件规范 → 本文件变量：
+     {typography.heading-2}     → --lk-text-heading-2      / --lk-leading-heading-2
      {typography.heading-3}     → --lk-text-heading-3      / --lk-leading-heading-3
      {typography.heading-4}     → --lk-text-heading-4      / --lk-leading-heading-4
      {typography.heading-5}     → --lk-text-heading-5      / --lk-leading-heading-5
@@ -2340,7 +2343,470 @@ html:not(.lk-ready) body {
 }
 
 /* --------------------------------------------------------------------------
-   22. 动效偏好 — DESIGN.md H.3：prefers-reduced-motion 下取消动效
+   22. 仪表盘：bento 网格、统计卡片（D）、图表（G）、迷你列表
+   -------------------------------------------------------------------------- */
+
+/* bento 容器：卡片间距统一 {spacing.xl}（24px） */
+.lk-bento {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lk-spacing-xl);
+  margin-top: var(--lk-spacing-xl);
+}
+
+.lk-bento-row {
+  display: grid;
+  gap: var(--lk-spacing-xl);
+}
+
+/* 第一行：三张统计卡片等宽 */
+.lk-bento-stats {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+/* 第二行：左 2/3 + 右 1/3 */
+.lk-bento-main {
+  grid-template-columns: 2fr 1fr;
+  align-items: start;
+}
+
+.lk-bento-side {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lk-spacing-xl);
+}
+
+/* 第三行：最近收支与最近日记等宽 */
+.lk-bento-recent {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+}
+
+/* 统计卡片：{rounded.lg} + 1px {colors.hairline} + 内边距 {spacing.xl}（D） */
+.lk-stat-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lk-spacing-xxs);
+  padding: var(--lk-spacing-xl);
+  border: 1px solid var(--lk-hairline);
+  border-radius: var(--lk-radius-lg);
+  background-color: var(--lk-canvas);
+}
+
+.lk-stat-card[data-variant='income'] {
+  background-color: var(--lk-card-tint-mint);
+}
+
+.lk-stat-card[data-variant='expense'] {
+  background-color: var(--lk-surface);
+}
+
+.lk-stat-card[data-variant='balance'] {
+  background-color: var(--lk-card-tint-lavender);
+}
+
+.lk-stat-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--lk-spacing-xs);
+}
+
+/* 标题 {typography.body-sm} + {colors.slate} */
+.lk-stat-card-title {
+  font-size: var(--lk-text-body-sm);
+  line-height: var(--lk-leading-body-sm);
+  color: var(--lk-slate);
+}
+
+.lk-stat-card-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--lk-radius-full);
+  background-color: var(--lk-canvas);
+}
+
+/* 数字 {typography.heading-2} 字重 600；不直接用亮绿/亮红，语义由角标传达 */
+.lk-stat-card-value {
+  font-size: var(--lk-text-heading-2);
+  line-height: var(--lk-leading-heading-2);
+  font-weight: 600;
+  color: var(--lk-charcoal);
+  font-variant-numeric: tabular-nums;
+}
+
+.lk-stat-card[data-variant='balance'] .lk-stat-card-value {
+  color: var(--lk-brand-purple-800);
+}
+
+/* 环比小字 {typography.caption-bold} */
+.lk-stat-card-change {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--lk-spacing-xxs);
+  font-size: var(--lk-text-caption-bold);
+  line-height: var(--lk-leading-caption-bold);
+  font-weight: 600;
+  color: var(--lk-steel);
+}
+
+.lk-stat-card-change[data-direction='up'] {
+  color: var(--lk-brand-green);
+}
+
+.lk-stat-card-change[data-direction='down'] {
+  color: var(--lk-semantic-error);
+}
+
+.lk-stat-card-change.is-muted {
+  color: var(--lk-steel);
+  font-weight: 400;
+}
+
+/* 通用卡片外壳 */
+.lk-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lk-spacing-md);
+  padding: var(--lk-spacing-xl);
+  background-color: var(--lk-canvas);
+  border: 1px solid var(--lk-hairline);
+  border-radius: var(--lk-radius-lg);
+}
+
+.lk-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--lk-spacing-sm);
+}
+
+/* 卡片标题 {typography.heading-5} + {colors.charcoal} */
+.lk-panel-title {
+  margin: 0;
+  font-size: var(--lk-text-heading-5);
+  line-height: var(--lk-leading-heading-5);
+  font-weight: 600;
+  color: var(--lk-charcoal);
+}
+
+.lk-chart-block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lk-spacing-sm);
+}
+
+.lk-chart-block + .lk-chart-block {
+  margin-top: var(--lk-spacing-md);
+  padding-top: var(--lk-spacing-md);
+  border-top: 1px solid var(--lk-hairline-soft);
+}
+
+/* 图表小标题 {typography.body-sm-medium} + {colors.slate} */
+.lk-chart-title {
+  margin: 0;
+  font-size: var(--lk-text-body-sm);
+  line-height: var(--lk-leading-body-sm);
+  font-weight: 500;
+  color: var(--lk-slate);
+}
+
+.lk-chart-host {
+  min-width: 0;
+}
+
+.lk-chart-empty,
+.lk-placeholder {
+  margin: 0;
+  padding: var(--lk-spacing-lg) 0;
+  font-size: var(--lk-text-body-sm);
+  line-height: var(--lk-leading-body-sm);
+  color: var(--lk-muted);
+}
+
+.lk-placeholder {
+  padding: var(--lk-spacing-md) 0;
+}
+
+/* donut：图 + 图例并排 */
+.lk-donut-wrap {
+  display: flex;
+  align-items: center;
+  gap: var(--lk-spacing-xl);
+  flex-wrap: wrap;
+}
+
+.lk-donut {
+  flex-shrink: 0;
+}
+
+/* 圆心汇总：{typography.heading-5} + charcoal */
+.lk-donut-total {
+  font-size: 18px;
+  font-weight: 600;
+  fill: var(--lk-charcoal);
+}
+
+.lk-donut-caption {
+  font-size: 11px;
+  font-weight: 600;
+  fill: var(--lk-steel);
+  letter-spacing: 1px;
+}
+
+/* 图例 */
+.lk-legend {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lk-spacing-xxs);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  min-width: 200px;
+  flex: 1 1 auto;
+}
+
+.lk-legend-item {
+  display: grid;
+  grid-template-columns: 10px 1fr auto auto;
+  align-items: center;
+  gap: var(--lk-spacing-xs);
+}
+
+.lk-legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: var(--lk-radius-full);
+  background-color: var(--lk-hairline-strong);
+}
+
+/* 图例色块与图表同源：用 data-chart-color 映射到 DESIGN.md G 的 Token */
+[data-chart-color='brand-purple'] { background-color: var(--lk-brand-purple); }
+[data-chart-color='brand-orange'] { background-color: var(--lk-brand-orange); }
+[data-chart-color='brand-teal'] { background-color: var(--lk-brand-teal); }
+[data-chart-color='brand-pink'] { background-color: var(--lk-brand-pink); }
+[data-chart-color='brand-yellow'] { background-color: var(--lk-brand-yellow); }
+[data-chart-color='link-blue'] { background-color: var(--lk-link-blue); }
+[data-chart-color='brand-green'] { background-color: var(--lk-brand-green); }
+[data-chart-color='brand-brown'] { background-color: var(--lk-brand-brown); }
+[data-chart-color='hairline-strong'] { background-color: var(--lk-hairline-strong); }
+
+/* 图例文字 {typography.caption-bold} */
+.lk-legend-name {
+  font-size: var(--lk-text-caption-bold);
+  line-height: var(--lk-leading-caption-bold);
+  font-weight: 600;
+  color: var(--lk-charcoal);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lk-legend-percent {
+  font-size: var(--lk-text-caption-bold);
+  line-height: var(--lk-leading-caption-bold);
+  font-weight: 600;
+  color: var(--lk-steel);
+  font-variant-numeric: tabular-nums;
+}
+
+.lk-legend-amount {
+  font-size: var(--lk-text-caption-bold);
+  line-height: var(--lk-leading-caption-bold);
+  font-weight: 600;
+  color: var(--lk-charcoal);
+  font-variant-numeric: tabular-nums;
+}
+
+/* 柱状图 */
+.lk-bars-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lk-spacing-xs);
+}
+
+.lk-bars {
+  display: block;
+  width: 100%;
+}
+
+/* 坐标轴文字 {colors.steel} + {typography.caption-bold}（G） */
+.lk-axis-text {
+  font-size: 11px;
+  font-weight: 600;
+  fill: var(--lk-steel);
+}
+
+.lk-axis-text[data-current='true'] {
+  fill: var(--lk-charcoal);
+}
+
+.lk-chart-legend {
+  display: flex;
+  align-items: center;
+  gap: var(--lk-spacing-md);
+}
+
+.lk-chart-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--lk-spacing-xxs);
+  font-size: var(--lk-text-caption-bold);
+  line-height: var(--lk-leading-caption-bold);
+  font-weight: 600;
+  color: var(--lk-steel);
+}
+
+/* 图表入场：首次渲染 200ms 生长（H.3），reduced-motion 下由末尾的媒体查询取消 */
+:root[data-charts='grow'] .lk-bar {
+  transform-origin: center bottom;
+  animation: lk-bar-grow var(--lk-motion-base) var(--lk-ease) both;
+}
+
+:root[data-charts='grow'] .lk-donut circle {
+  animation: lk-donut-grow var(--lk-motion-base) var(--lk-ease) both;
+}
+
+@keyframes lk-bar-grow {
+  from { transform: scaleY(0); }
+  to { transform: scaleY(1); }
+}
+
+@keyframes lk-donut-grow {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* 迷你列表（保修提醒 / 最近收支 / 最近日记共用的行） */
+.lk-mini-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.lk-mini-row {
+  display: flex;
+  align-items: center;
+  gap: var(--lk-spacing-sm);
+  width: 100%;
+  padding: var(--lk-spacing-sm) 0;
+  border: 0;
+  border-bottom: 1px solid var(--lk-hairline-soft);
+  background-color: transparent;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color var(--lk-motion-fast) var(--lk-ease);
+}
+
+.lk-mini-row:last-child {
+  border-bottom: 0;
+}
+
+.lk-mini-row:hover {
+  background-color: var(--lk-surface-soft);
+}
+
+.lk-mini-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.lk-mini-title {
+  font-size: var(--lk-text-body-sm);
+  line-height: var(--lk-leading-body-sm);
+  font-weight: 500;
+  color: var(--lk-charcoal);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lk-mini-sub {
+  font-size: var(--lk-text-caption);
+  line-height: var(--lk-leading-caption);
+  color: var(--lk-steel);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lk-mini-value {
+  flex-shrink: 0;
+  font-size: var(--lk-text-caption-bold);
+  line-height: var(--lk-leading-caption-bold);
+  font-weight: 600;
+  color: var(--lk-slate);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.lk-mini-value[data-variant='income'] {
+  color: var(--lk-brand-green);
+}
+
+.lk-mini-value[data-variant='expense'] {
+  color: var(--lk-semantic-error);
+}
+
+.lk-mini-value[data-variant='expiring'] {
+  color: var(--lk-semantic-warning);
+}
+
+.lk-mini-value[data-variant='expired'] {
+  color: var(--lk-semantic-error);
+}
+
+/* 快捷操作：2×2 网格，「记一笔」用主样式 */
+.lk-quick-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--lk-spacing-xs);
+}
+
+.lk-quick-actions .lk-btn {
+  width: 100%;
+}
+
+/* 计数行 */
+.lk-count-row {
+  display: flex;
+  align-items: center;
+  gap: var(--lk-spacing-md);
+  flex-wrap: wrap;
+  padding: var(--lk-spacing-sm) var(--lk-spacing-lg);
+  background-color: var(--lk-surface);
+  border: 1px solid var(--lk-hairline);
+  border-radius: var(--lk-radius-lg);
+}
+
+.lk-count-chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--lk-spacing-xxs);
+}
+
+.lk-count-label {
+  font-size: var(--lk-text-caption);
+  line-height: var(--lk-leading-caption);
+  color: var(--lk-slate);
+}
+
+.lk-count-value {
+  font-size: var(--lk-text-caption-bold);
+  line-height: var(--lk-leading-caption-bold);
+  font-weight: 600;
+  color: var(--lk-charcoal);
+  font-variant-numeric: tabular-nums;
+}
+
+/* --------------------------------------------------------------------------
+   23. 动效偏好 — DESIGN.md H.3：prefers-reduced-motion 下取消动效
    -------------------------------------------------------------------------- */
 @media (prefers-reduced-motion: reduce) {
   *,
