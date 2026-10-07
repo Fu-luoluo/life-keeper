@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="h-full">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="light">
+  <meta name="description" content="LifeKeeper（生活管家）— 本地优先、隐私优先的个人生活管理应用。">
+  <title>LifeKeeper — 生活管家</title>
+
+  <!-- 应用外壳样式：CSS 变量集中存放 DESIGN.md 全部 Token（颜色/字号/行高/字距/间距/圆角/阴影） -->
+  <link rel="stylesheet" href="assets/css/app.css">
+
+  <!-- Tailwind：原型阶段使用 Play CDN（AGENTS.md 第 5 节允许）；正式交付前改为本地文件 / CLI 构建 -->
+  <script src="https://cdn.tailwindcss.com/3.4.16"></script>
+  <script>
+    /*
+     * Tailwind 主题：直接读取 assets/css/app.css 中 :root 的 DESIGN.md Token 变量。
+     * 此处不写入任何色值/尺寸字面量，避免与 DESIGN.md 出现第二份真值。
+     */
+    (function () {
+      var css = getComputedStyle(document.documentElement);
+      var v = function (name) { return css.getPropertyValue(name).trim(); };
+      var colors = {};
+      [
+        'canvas', 'surface', 'surface-soft', 'hairline', 'hairline-soft', 'hairline-strong',
+        'ink-deep', 'ink', 'charcoal', 'slate', 'steel', 'stone', 'muted', 'on-dark',
+        'primary', 'primary-pressed', 'primary-deep', 'on-primary',
+        'brand-purple', 'brand-purple-800', 'brand-orange', 'brand-orange-deep',
+        'brand-teal', 'brand-pink', 'brand-green', 'brand-yellow', 'brand-brown', 'link-blue',
+        'card-tint-peach', 'card-tint-rose', 'card-tint-mint', 'card-tint-lavender',
+        'card-tint-sky', 'card-tint-yellow', 'card-tint-yellow-bold', 'card-tint-cream', 'card-tint-gray',
+        'semantic-success', 'semantic-warning', 'semantic-error'
+      ].forEach(function (name) { colors['lk-' + name] = v('--lk-' + name); });
+
+      var spacing = {};
+      ['xxs', 'xs', 'sm', 'md', 'lg', 'xl', 'xxl', 'xxxl'].forEach(function (name) {
+        spacing[name] = v('--lk-spacing-' + name);
+      });
+
+      var radius = {};
+      ['xs', 'sm', 'md', 'lg', 'xl', 'xxl', 'xxxl', 'full'].forEach(function (name) {
+        radius['lk-' + name] = v('--lk-radius-' + name);
+      });
+
+      var fontSize = {
+        /* 与 assets/css/app.css 的 --lk-text-* / --lk-leading-* 同源，对应 DESIGN.md {typography.*} */
+        'lk-heading-4': [v('--lk-text-heading-4'), { lineHeight: v('--lk-leading-heading-4'), fontWeight: '600' }],
+        'lk-heading-5': [v('--lk-text-heading-5'), { lineHeight: v('--lk-leading-heading-5'), fontWeight: '600' }],
+        'lk-subtitle': [v('--lk-text-subtitle'), { lineHeight: v('--lk-leading-subtitle'), fontWeight: '400' }],
+        'lk-body-md': [v('--lk-text-body-md'), { lineHeight: v('--lk-leading-body-md'), fontWeight: '400' }],
+        'lk-body-md-medium': [v('--lk-text-body-md'), { lineHeight: v('--lk-leading-body-md'), fontWeight: '500' }],
+        'lk-body-sm': [v('--lk-text-body-sm'), { lineHeight: v('--lk-leading-body-sm'), fontWeight: '400' }],
+        'lk-body-sm-medium': [v('--lk-text-body-sm'), { lineHeight: v('--lk-leading-body-sm'), fontWeight: '500' }],
+        'lk-caption': [v('--lk-text-caption'), { lineHeight: v('--lk-leading-caption'), fontWeight: '400' }],
+        'lk-caption-bold': [v('--lk-text-caption-bold'), { lineHeight: v('--lk-leading-caption-bold'), fontWeight: '600' }],
+        'lk-micro-uppercase': [v('--lk-text-micro-uppercase'), { lineHeight: v('--lk-leading-micro-uppercase'), letterSpacing: v('--lk-tracking-micro-uppercase'), fontWeight: '600' }],
+        'lk-button-md': [v('--lk-text-body-sm'), { lineHeight: '1.3', fontWeight: '500' }]
+      };
+
+      window.tailwind = window.tailwind || {};
+      window.tailwind.config = {
+        theme: {
+          extend: {
+            colors: colors,
+            spacing: spacing,
+            borderRadius: radius,
+            fontSize: fontSize,
+            boxShadow: {
+              'lk-level-1': v('--lk-shadow-level-1'),
+              'lk-level-2': v('--lk-shadow-level-2'),
+              'lk-level-4': v('--lk-shadow-level-4')
+            },
+            fontFamily: { 'lk-sans': [v('--lk-font-sans')] },
+            maxWidth: { 'lk-content': v('--lk-content-max-width') },
+            width: { 'lk-sidebar': v('--lk-sidebar-width') },
+            height: { 'lk-topbar': v('--lk-topbar-height'), 'lk-brand': '64px' },
+            transitionDuration: { 'lk-fast': '150ms', 'lk-base': '200ms' }
+          }
+        }
+      };
+    })();
+  </script>
+</head>
+
+<body class="h-full">
+  <div class="flex min-h-screen bg-lk-canvas font-lk-sans text-lk-ink">
+
+    <!-- ====================================================================
+         左侧导航栏 — DESIGN.md B.1（v0.1 只实现桌面 / 平板 ≥1024px 的 240px 展开态；
+         640–1023px 的 72px 折叠态与 <640px 的底部 Tab 栏属移动端适配，本阶段不实现）
+         ==================================================================== -->
+    <aside class="lk-sidebar flex flex-col" aria-label="主导航">
+
+      <!-- 品牌区：高度 64px（B.1） -->
+      <div class="lk-brand">
+        <!-- 产品标志：四瓣花形标记；配色全部取 DESIGN.md 既有 {colors.*} Token（见 app.css 的 --lk-mark-*），
+             紫色仅作小面积装饰标记，不用于大面积背景 -->
+        <svg class="lk-brand-mark" viewBox="0 0 32 32" aria-hidden="true" focusable="false">
+          <path fill="var(--lk-mark-1)" d="M16 3c4.2 0 7.2 3 7.3 7.1L16 16z"></path>
+          <path fill="var(--lk-mark-2)" d="M26.4 9.6c2.1 3.6.9 7.7-2.7 9.9L16 16z"></path>
+          <path fill="var(--lk-mark-3)" d="M19.4 27.2c-4 1.1-7.9-1.1-9.1-5L16 16z"></path>
+          <path fill="var(--lk-mark-4)" d="M5.4 20.4C4.2 16.8 6.3 13 9.9 11.8l6.1 4.2z"></path>
+        </svg>
+        <span class="lk-brand-name">LifeKeeper</span>
+      </div>
+
+      <!-- 导航条目：仪表盘 / 日常收支 / 生活记录 / 物品台账 / 密码保管（B.1 条目顺序） -->
+      <nav class="flex-1 overflow-y-auto px-lk-sm pb-lk-xs" aria-label="模块导航">
+        <ul class="flex flex-col gap-lk-xxs" role="list">
+
+          <li>
+            <a class="lk-nav-item" href="#/dashboard" data-page="dashboard" aria-current="page">
+              <svg class="lk-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                <rect x="3.25" y="3.25" width="7.5" height="7.5" rx="2"></rect>
+                <rect x="13.25" y="3.25" width="7.5" height="7.5" rx="2"></rect>
+                <rect x="3.25" y="13.25" width="7.5" height="7.5" rx="2"></rect>
+                <rect x="13.25" y="13.25" width="7.5" height="7.5" rx="2"></rect>
+              </svg>
+              <span>仪表盘</span>
+            </a>
+          </li>
+
+          <li>
+            <a class="lk-nav-item" href="#/account" data-page="account">
+              <svg class="lk-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                <rect x="2.75" y="5.75" width="18.5" height="12.5" rx="3"></rect>
+                <path d="M2.75 10.25h18.5"></path>
+                <path d="M6.75 14.5h3.5"></path>
+              </svg>
+              <span>日常收支</span>
+            </a>
+          </li>
+
+          <li>
+            <a class="lk-nav-item" href="#/diary" data-page="diary">
+              <svg class="lk-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                <path d="M5.75 4.25h9.5a3 3 0 0 1 3 3v12.5H8.75a3 3 0 0 1-3-3z"></path>
+                <path d="M5.75 16.75h12.5"></path>
+                <path d="M9.25 9.25h5.75"></path>
+                <path d="M9.25 12.5h5.75"></path>
+              </svg>
+              <span>生活记录</span>
+            </a>
+          </li>
+
+          <li>
+            <a class="lk-nav-item" href="#/items" data-page="items">
+              <svg class="lk-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                <path d="M3.25 7.75 12 3.5l8.75 4.25L12 12z"></path>
+                <path d="M3.25 7.75V16L12 20.5l8.75-4.5V7.75"></path>
+                <path d="M12 12v8.5"></path>
+              </svg>
+              <span>物品台账</span>
+            </a>
+          </li>
+
+          <li>
+            <a class="lk-nav-item" href="#/vault" data-page="vault">
+              <svg class="lk-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                <circle cx="12" cy="12" r="8.5"></circle>
+                <circle cx="12" cy="12" r="3.5"></circle>
+                <path d="M12 3.5v3M12 17.5v3M3.5 12h3M17.5 12h3"></path>
+              </svg>
+              <span>密码保管</span>
+            </a>
+          </li>
+
+        </ul>
+      </nav>
+
+      <!-- 「设置」固定在导航栏底部（B.1） -->
+      <div class="shrink-0 border-t border-lk-hairline p-lk-sm">
+        <a class="lk-nav-item" href="#/settings" data-page="settings">
+          <svg class="lk-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+            <circle cx="12" cy="12" r="3.25"></circle>
+            <path d="M19.2 14.6a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-2.81 1.17V21a2 2 0 1 1-4 0v-.11a1.65 1.65 0 0 0-2.81-1.17l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0-1.17-2.81H3a2 2 0 1 1 0-4h.11a1.65 1.65 0 0 0 1.17-2.81l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 2.81-1.17V3a2 2 0 1 1 4 0v.11a1.65 1.65 0 0 0 2.81 1.17l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0 1.17 2.81H21a2 2 0 1 1 0 4h-.11a1.65 1.65 0 0 0-1.52.98z"></path>
+          </svg>
+          <span>设置</span>
+        </a>
+      </div>
+
+    </aside>
+
+    <!-- ====================================================================
+         主区域 — DESIGN.md B.2
+         ==================================================================== -->
+    <div class="flex min-w-0 flex-1 flex-col">
+
+      <!-- 顶栏：高度 64px，底部 1px {colors.hairline} -->
+      <header class="lk-topbar flex items-center">
+        <div class="lk-container flex items-center justify-between gap-lk-xl">
+
+          <!-- 左侧：问候语 {typography.heading-4} + 日期（由 JS 读取本机日期动态生成） -->
+          <div class="min-w-0">
+            <p class="lk-greeting truncate">下午好，欢迎回来</p>
+            <p class="lk-date mt-lk-xxs" id="current-date" aria-live="polite"></p>
+          </div>
+
+          <!-- 右侧：search-pill → 挂锁图标按钮 → 36px 圆形头像 -->
+          <div class="flex shrink-0 items-center gap-lk-md">
+            <div class="lk-search-pill">
+              <svg class="lk-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                <circle cx="10.75" cy="10.75" r="6.5"></circle>
+                <path d="M15.75 15.75 20.5 20.5"></path>
+              </svg>
+              <label class="lk-sr-only" for="global-search">搜索</label>
+              <input class="lk-search-input" id="global-search" type="search" placeholder="搜索" autocomplete="off" spellcheck="false">
+            </div>
+
+            <button class="lk-icon-btn" type="button" id="lock-button" data-lock-button>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                <rect x="4.75" y="10.75" width="14.5" height="9.5" rx="2.5"></rect>
+                <path d="M8.25 10.75V7.5a3.75 3.75 0 0 1 7.5 0v3.25"></path>
+              </svg>
+              <span class="lk-sr-only">锁定</span>
+            </button>
+
+            <!-- 头像：36px 圆形占位（B.2）；配色取 {colors.card-tint-lavender} / {colors.stone} -->
+            <span class="lk-avatar" role="img" aria-label="用户头像">
+              <svg viewBox="0 0 36 36" aria-hidden="true" focusable="false">
+                <circle class="lk-avatar-bg" cx="18" cy="18" r="18"></circle>
+                <circle class="lk-avatar-figure" cx="18" cy="14.5" r="5.25"></circle>
+                <path class="lk-avatar-figure" d="M6.5 34.5a11.5 11.5 0 0 1 23 0z"></path>
+              </svg>
+            </span>
+          </div>
+
+        </div>
+      </header>
+
+      <!-- 内容区：最大宽度 1200px 居中，桌面内边距 {spacing.xxl} -->
+      <main class="lk-container flex-1 py-lk-xxl" id="app-main" tabindex="-1">
+
+        <!-- 仪表盘 -->
+        <section class="lk-view" id="view-dashboard" data-page="dashboard" aria-labelledby="title-dashboard">
+          <div class="lk-page-head">
+            <h1 class="lk-page-title" id="title-dashboard">仪表盘</h1>
+            <p class="lk-page-subtitle">收支概览与最近动态。</p>
+          </div>
+          <div class="lk-empty-state mt-lk-xl">
+            <div class="lk-empty-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                <rect x="3.25" y="3.25" width="7.5" height="7.5" rx="2"></rect>
+                <rect x="13.25" y="3.25" width="7.5" height="7.5" rx="2"></rect>
+                <rect x="3.25" y="13.25" width="7.5" height="7.5" rx="2"></rect>
+                <rect x="13.25" y="13.25" width="7.5" height="7.5" rx="2"></rect>
+              </svg>
+            </div>
+            <p class="lk-empty-title">仪表盘暂无内容</p>
+            <p class="lk-empty-desc">统计卡片、最近收支与提醒将在后续版本中呈现。</p>
+          </div>
+        </section>
+
+        <!-- 日常收支 -->
+        <section class="lk-view" id="view-account" data-page="account" aria-labelledby="title-account" hidden>
+          <div class="lk-page-head">
+            <h1 class="lk-page-title" id="title-account">日常收支</h1>
+            <p class="lk-page-subtitle">记录每一笔收入与支出。</p>
+          </div>
+          <div class="lk-empty-state mt-lk-xl">
+            <div class="lk-empty-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                <rect x="2.75" y="5.75" width="18.5" height="12.5" rx="3"></rect>
+                <path d="M2.75 10.25h18.5"></path>
+                <path d="M6.75 14.5h3.5"></path>
+              </svg>
+            </div>
+            <p class="lk-empty-title">日常收支暂无内容</p>
+            <p class="lk-empty-desc">流水列表与记一笔入口将在后续版本中提供。</p>
+          </div>
+        </section>
+
+        <!-- 生活记录 -->
+        <section class="lk-view" id="view-diary" data-page="diary" aria-labelledby="title-diary" hidden>
+          <div class="lk-page-head">
+            <h1 class="lk-page-title" id="title-diary">生活记录</h1>
+            <p class="lk-page-subtitle">写下每天值得留下的事。</p>
+          </div>
+          <div class="lk-empty-state mt-lk-xl">
+            <div class="lk-empty-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                <path d="M5.75 4.25h9.5a3 3 0 0 1 3 3v12.5H8.75a3 3 0 0 1-3-3z"></path>
+                <path d="M5.75 16.75h12.5"></path>
+                <path d="M9.25 9.25h5.75"></path>
+                <path d="M9.25 12.5h5.75"></path>
+              </svg>
+            </div>
+            <p class="lk-empty-title">生活记录暂无内容</p>
+            <p class="lk-empty-desc">日记列表与编辑入口将在后续版本中提供。</p>
+          </div>
+        </section>
+
+        <!-- 物品台账 -->
+        <section class="lk-view" id="view-items" data-page="items" aria-labelledby="title-items" hidden>
+          <div class="lk-page-head">
+            <h1 class="lk-page-title" id="title-items">物品台账</h1>
+            <p class="lk-page-subtitle">清点家里的物品与保修信息。</p>
+          </div>
+          <div class="lk-empty-state mt-lk-xl">
+            <div class="lk-empty-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                <path d="M3.25 7.75 12 3.5l8.75 4.25L12 12z"></path>
+                <path d="M3.25 7.75V16L12 20.5l8.75-4.5V7.75"></path>
+                <path d="M12 12v8.5"></path>
+              </svg>
+            </div>
+            <p class="lk-empty-title">物品台账暂无内容</p>
+            <p class="lk-empty-desc">物品列表与保修提醒将在后续版本中提供。</p>
+          </div>
+        </section>
+
+        <!-- 密码保管 -->
+        <section class="lk-view" id="view-vault" data-page="vault" aria-labelledby="title-vault" hidden>
+          <div class="lk-page-head">
+            <h1 class="lk-page-title" id="title-vault">密码保管</h1>
+            <p class="lk-page-subtitle">本地加密保存账号与密码。</p>
+          </div>
+          <div class="lk-empty-state mt-lk-xl">
+            <div class="lk-empty-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                <rect x="4.75" y="10.75" width="14.5" height="9.5" rx="2.5"></rect>
+                <path d="M8.25 10.75V7.5a3.75 3.75 0 0 1 7.5 0v3.25"></path>
+              </svg>
+            </div>
+            <p class="lk-empty-title">密码保管暂无内容</p>
+            <p class="lk-empty-desc">主密码解锁与账号列表将在后续版本中提供。</p>
+          </div>
+        </section>
+
+        <!-- 设置 -->
+        <section class="lk-view" id="view-settings" data-page="settings" aria-labelledby="title-settings" hidden>
+          <div class="lk-page-head">
+            <h1 class="lk-page-title" id="title-settings">设置</h1>
+            <p class="lk-page-subtitle">偏好、安全与数据管理。</p>
+          </div>
+          <div class="lk-empty-state mt-lk-xl">
+            <div class="lk-empty-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                <circle cx="12" cy="12" r="3.25"></circle>
+                <path d="M19.2 14.6a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-2.81 1.17V21a2 2 0 1 1-4 0v-.11a1.65 1.65 0 0 0-2.81-1.17l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0-1.17-2.81H3a2 2 0 1 1 0-4h.11a1.65 1.65 0 0 0 1.17-2.81l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 2.81-1.17V3a2 2 0 1 1 4 0v.11a1.65 1.65 0 0 0 2.81 1.17l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0 1.17 2.81H21a2 2 0 1 1 0 4h-.11a1.65 1.65 0 0 0-1.52.98z"></path>
+              </svg>
+            </div>
+            <p class="lk-empty-title">设置暂无内容</p>
+            <p class="lk-empty-desc">主题、自动锁定与数据导入导出将在后续版本中提供。</p>
+          </div>
+        </section>
+
+      </main>
+    </div>
+  </div>
+
+  <!-- 入口脚本：ES Module，必须经 Live Server（http(s)）访问，file:// 下浏览器会拒绝加载模块 -->
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,522 @@
+/* ==========================================================================
+   LifeKeeper — 应用外壳样式（v0.1 桌面端骨架）
+   --------------------------------------------------------------------------
+   本文件只使用 DESIGN.md 已定义的 Token，不新增任何颜色 / 字号 / 圆角 / 间距 / 阴影。
+   命名规则：
+     --lk-<Token 名>                颜色，例如 --lk-card-tint-lavender = {colors.card-tint-lavender}
+     --lk-text-<token>              字号，例如 --lk-text-heading-5 = {typography.heading-5}.fontSize
+     --lk-leading-<token>           行高，例如 --lk-leading-heading-5 = {typography.heading-5}.lineHeight
+     --lk-tracking-<token>          字距，例如 --lk-tracking-micro-uppercase
+   --------------------------------------------------------------------------
+   映射总览
+     颜色：{colors.*}                          → --lk-*
+     字体：Inter + fallback 链（DESIGN.md A.2）→ --lk-font-sans
+     字号：{typography.*}.fontSize             → --lk-text-*
+     行高：{typography.*}.lineHeight           → --lk-leading-*
+     字距：{typography.*}.letterSpacing        → --lk-tracking-*
+     间距：{spacing.*}                         → --lk-spacing-*
+     圆角：{rounded.*}                         → --lk-radius-*
+     阴影：Elevation Level 1 / 2 / 4           → --lk-shadow-*
+   Tailwind 工具类同源：tailwind.config 在运行时读取上面的变量，
+   因此 HTML 中的 bg-lk-canvas / text-lk-charcoal / rounded-lk-lg 与本文件完全一致。
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   1. 设计 Token（DESIGN.md）
+   -------------------------------------------------------------------------- */
+:root {
+  /* Font Family — DESIGN.md A.2：Notion Sans 不可自由分发，实际使用 fallback 链中的 Inter */
+  --lk-font-sans: Inter, -apple-system, system-ui, 'Segoe UI', Helvetica, sans-serif;
+
+  /* Colors — Brand & Primary */
+  --lk-primary: #5645d4;
+  --lk-primary-pressed: #4534b3;
+  --lk-primary-deep: #3a2a99;
+  --lk-on-primary: #ffffff;
+
+  /* Colors — Brand Spectrum */
+  --lk-brand-purple: #7b3ff2;
+  --lk-brand-purple-800: #391c57;
+  --lk-brand-orange: #dd5b00;
+  --lk-brand-orange-deep: #793400;
+  --lk-brand-teal: #2a9d99;
+  --lk-brand-pink: #ff64c8;
+  --lk-brand-green: #1aae39;
+  --lk-brand-yellow: #f5d75e;
+  --lk-brand-brown: #523410;
+  --lk-link-blue: #0075de;
+
+  /* Colors — Card Tints */
+  --lk-card-tint-peach: #ffe8d4;
+  --lk-card-tint-rose: #fde0ec;
+  --lk-card-tint-mint: #d9f3e1;
+  --lk-card-tint-lavender: #e6e0f5;
+  --lk-card-tint-sky: #dcecfa;
+  --lk-card-tint-yellow: #fef7d6;
+  --lk-card-tint-yellow-bold: #f9e79f;
+  --lk-card-tint-cream: #f8f5e8;
+  --lk-card-tint-gray: #f0eeec;
+
+  /* Colors — Surface */
+  --lk-canvas: #ffffff;
+  --lk-surface: #f6f5f4;
+  --lk-surface-soft: #fafaf9;
+  --lk-hairline: #e5e3df;
+  --lk-hairline-soft: #ede9e4;
+  --lk-hairline-strong: #c8c4be;
+
+  /* Colors — Text */
+  --lk-ink-deep: #000000;
+  --lk-ink: #1a1a1a;
+  --lk-charcoal: #37352f;
+  --lk-slate: #5d5b54;
+  --lk-steel: #787671;
+  --lk-stone: #a4a097;
+  --lk-muted: #bbb8b1;
+  --lk-on-dark: #ffffff;
+
+  /* Colors — Semantic */
+  --lk-semantic-success: #1aae39;
+  --lk-semantic-warning: #dd5b00;
+  --lk-semantic-error: #e03131;
+
+  /* Typography — 字号 / 行高 / 字距（由 {typography.*} 展开）
+     注意：CSS 自定义属性名只能由字母/数字/连字符组成，
+     因此这里用 --lk-text-* / --lk-leading-* / --lk-tracking-* 平面命名承接 {typography.*}，
+     不使用 {typography.heading-5} 里的小数点，也不使用双冒号（双冒号命名会被浏览器整条丢弃）。 */
+  --lk-text-heading-4: 22px;
+  --lk-leading-heading-4: 1.3;
+  --lk-text-heading-5: 18px;
+  --lk-leading-heading-5: 1.4;
+  --lk-text-subtitle: 18px;
+  --lk-leading-subtitle: 1.5;
+  --lk-text-body-md: 16px;
+  --lk-leading-body-md: 1.55;
+  --lk-text-body-sm: 14px;
+  --lk-leading-body-sm: 1.5;
+  --lk-text-caption: 13px;
+  --lk-leading-caption: 1.4;
+  --lk-text-caption-bold: 13px;
+  --lk-leading-caption-bold: 1.4;
+  --lk-text-micro-uppercase: 11px;
+  --lk-leading-micro-uppercase: 1.4;
+  --lk-tracking-micro-uppercase: 1px;
+
+  /* 产品标志配色：直接取自 {colors.*} 既有 Token，不新增色值 */
+  --lk-mark-1: var(--lk-brand-purple);   /* {colors.brand-purple} #7b3ff2 */
+  --lk-mark-2: var(--lk-brand-purple-300); /* {colors.brand-purple-300} #d6b6f6 */
+  --lk-mark-3: var(--lk-brand-yellow);   /* {colors.brand-yellow} #f5d75e */
+  --lk-mark-4: var(--lk-primary);        /* {colors.primary} #5645d4 */
+  --lk-mark-5: var(--lk-canvas);         /* 标志中心留白：{colors.canvas} */
+
+  /* Spacing — {spacing.*} */
+  --lk-spacing-xxs: 4px;
+  --lk-spacing-xs: 8px;
+  --lk-spacing-sm: 12px;
+  --lk-spacing-md: 16px;
+  --lk-spacing-lg: 20px;
+  --lk-spacing-xl: 24px;
+  --lk-spacing-xxl: 32px;
+  --lk-spacing-xxxl: 40px;
+
+  /* Rounded — {rounded.*} */
+  --lk-radius-xs: 4px;
+  --lk-radius-sm: 6px;
+  --lk-radius-md: 8px;
+  --lk-radius-lg: 12px;
+  --lk-radius-xl: 16px;
+  --lk-radius-xxl: 20px;
+  --lk-radius-xxxl: 24px;
+  --lk-radius-full: 9999px;
+
+  /* Elevation & Depth */
+  --lk-shadow-level-1: rgba(15, 15, 15, 0.04) 0px 1px 2px 0px;
+  --lk-shadow-level-2: rgba(15, 15, 15, 0.08) 0px 4px 12px 0px;
+  --lk-shadow-level-4: rgba(15, 15, 15, 0.16) 0px 16px 48px -8px;
+
+  /* Motion — DESIGN.md H.3：颜色 / 背景 / 边框 / 阴影过渡统一 150–200ms ease */
+  --lk-motion-fast: 150ms;
+  --lk-motion-base: 200ms;
+  --lk-ease: ease;
+
+  /* App Shell 尺寸 — DESIGN.md B.1 / B.2 */
+  --lk-sidebar-width: 240px;      /* 桌面（≥1024px）固定 240px */
+  --lk-topbar-height: 64px;       /* 顶栏高度 64px */
+  --lk-content-max-width: 1200px; /* 内容区最大宽度 1200px 居中 */
+}
+
+/* 设计 Token 的别名层：集中说明「哪个 CSS 变量对应 DESIGN.md 的哪个 {typography.*}」
+   DESIGN.md 组件规范 → 本文件变量：
+     {typography.heading-4}     → --lk-text-heading-4      / --lk-leading-heading-4
+     {typography.heading-5}     → --lk-text-heading-5      / --lk-leading-heading-5
+     {typography.subtitle}      → --lk-text-subtitle       / --lk-leading-subtitle
+     {typography.body-md}       → --lk-text-body-md        / --lk-leading-body-md
+     {typography.body-sm}       → --lk-text-body-sm        / --lk-leading-body-sm
+     {typography.caption}       → --lk-text-caption        / --lk-leading-caption
+     {typography.caption-bold}  → --lk-text-caption-bold   / --lk-leading-caption-bold
+     {typography.micro-uppercase} → --lk-text-micro-uppercase / --lk-leading-micro-uppercase
+                                    / --lk-tracking-micro-uppercase
+   （字重 600 / 500 / 400 直接写在对应组件规则上，与 DESIGN.md 一致；未见单独 token。） */
+
+/* --------------------------------------------------------------------------
+   2. 基础层
+   -------------------------------------------------------------------------- */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  /* 页面级中文回退：Inter 未覆盖汉字时由系统字体承接（DESIGN.md A.2 fallback 链） */
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background-color: var(--lk-canvas);
+  color: var(--lk-ink);
+  font-family: var(--lk-font-sans);
+  font-size: var(--lk-text-body-md);
+  line-height: var(--lk-leading-body-md);
+  font-weight: 400;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* 视觉隐藏但保留给读屏（无障碍标签） */
+.lk-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* 焦点环 — DESIGN.md H.2：2px {colors.primary} + 2px 透明外间距，仅键盘导航显示 */
+:focus-visible {
+  outline: 2px solid var(--lk-primary);
+  outline-offset: 2px;
+}
+
+/* 载入失败兜底：Tailwind Play CDN 未就绪时，至少保证页面结构不崩塌 */
+html:not(.lk-ready) body {
+  visibility: hidden;
+}
+
+/* --------------------------------------------------------------------------
+   3. 应用外壳 — DESIGN.md B.1
+   -------------------------------------------------------------------------- */
+.lk-sidebar {
+  width: var(--lk-sidebar-width);
+  flex-shrink: 0;
+  background-color: var(--lk-surface);
+  border-right: 1px solid var(--lk-hairline);
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  height: 100dvh;
+}
+
+/* 品牌区：高度 64px，左侧产品标志 + 「LifeKeeper」文字 */
+.lk-brand {
+  height: 64px;
+  padding: 0 var(--lk-spacing-md);
+  display: flex;
+  align-items: center;
+  gap: var(--lk-spacing-sm);
+  flex-shrink: 0;
+}
+
+.lk-brand-mark {
+  width: 28px;
+  height: 28px;
+  display: block;
+  flex-shrink: 0;
+}
+
+.lk-brand-name {
+  font-size: var(--lk-text-heading-5);
+  line-height: var(--lk-leading-heading-5);
+  font-weight: 600;
+  color: var(--lk-charcoal);
+  white-space: nowrap;
+}
+
+/* 导航条目：高度 40px，左右内边距 {spacing.md}，圆角 {rounded.sm}，图标 18px + {spacing.sm} 间距 */
+.lk-nav-item {
+  display: flex;
+  align-items: center;
+  gap: var(--lk-spacing-sm);
+  height: 40px;
+  min-height: 40px;
+  padding: 0 var(--lk-spacing-md);
+  border-radius: var(--lk-radius-sm);
+  background-color: transparent;
+  color: var(--lk-slate);
+  font-size: var(--lk-text-body-sm);
+  line-height: var(--lk-leading-body-sm);
+  font-weight: 500;
+  text-decoration: none;
+  white-space: nowrap;
+  user-select: none;
+  cursor: pointer;
+  transition: background-color var(--lk-motion-fast) var(--lk-ease),
+              color var(--lk-motion-fast) var(--lk-ease);
+}
+
+.lk-nav-item .lk-nav-icon {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  color: currentColor;
+}
+
+/* 悬停态：背景 {colors.hairline-soft} */
+.lk-nav-item:hover {
+  background-color: var(--lk-hairline-soft);
+}
+
+/* 选中态：背景 {colors.card-tint-lavender}，文字与图标 {colors.brand-purple-800} */
+.lk-nav-item.is-active {
+  background-color: var(--lk-card-tint-lavender);
+  color: var(--lk-brand-purple-800);
+}
+
+/* --------------------------------------------------------------------------
+   4. 主区域顶栏 — DESIGN.md B.2
+   -------------------------------------------------------------------------- */
+.lk-topbar {
+  height: var(--lk-topbar-height);
+  border-bottom: 1px solid var(--lk-hairline);
+  background-color: var(--lk-canvas);
+  position: sticky;
+  top: 0;
+  z-index: 20;
+}
+
+/* 顶栏内部与内容区共用同一 1200px 居中栏，保证左右边界对齐 */
+.lk-container {
+  width: 100%;
+  max-width: var(--lk-content-max-width);
+  margin: 0 auto;
+  padding: 0 var(--lk-spacing-xxl); /* 桌面内边距 {spacing.xxl} */
+}
+
+/* 问候语 {typography.heading-4} + {colors.charcoal} */
+.lk-greeting {
+  font-size: var(--lk-text-heading-4);
+  line-height: var(--lk-leading-heading-4);
+  font-weight: 600;
+  color: var(--lk-charcoal);
+}
+
+/* 日期 {typography.caption-bold} + {colors.steel} */
+.lk-date {
+  font-size: var(--lk-text-caption-bold);
+  line-height: var(--lk-leading-caption-bold);
+  font-weight: 600;
+  color: var(--lk-steel);
+}
+
+/* 搜索框 — {components.search-pill}：背景 {colors.surface}、文字 {colors.steel}、
+   {typography.body-md}、{rounded.md}、高度 44px、1px {colors.hairline} */
+.lk-search-pill {
+  display: flex;
+  align-items: center;
+  gap: var(--lk-spacing-xs);
+  height: 44px;
+  width: 260px;
+  padding: 0 var(--lk-spacing-md);
+  background-color: var(--lk-surface);
+  border: 1px solid var(--lk-hairline);
+  border-radius: var(--lk-radius-md);
+  transition: border-color var(--lk-motion-fast) var(--lk-ease),
+              box-shadow var(--lk-motion-fast) var(--lk-ease);
+}
+
+.lk-search-pill:focus-within {
+  border-color: var(--lk-primary);
+}
+
+.lk-search-pill .lk-search-icon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  color: var(--lk-steel);
+}
+
+.lk-search-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--lk-ink);
+  font-family: inherit;
+  font-size: var(--lk-text-body-md);
+  line-height: var(--lk-leading-body-md);
+}
+
+.lk-search-input::placeholder {
+  color: var(--lk-steel);
+  opacity: 1;
+}
+
+/* 图标按钮 — DESIGN.md A.4：{rounded.full} 允许用于圆形图标按钮；
+   H.1：hover 背景 {colors.hairline-soft} */
+.lk-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--lk-radius-full);
+  background-color: transparent;
+  color: var(--lk-steel);
+  cursor: pointer;
+  transition: background-color var(--lk-motion-fast) var(--lk-ease),
+              color var(--lk-motion-fast) var(--lk-ease);
+}
+
+.lk-icon-btn:hover {
+  background-color: var(--lk-hairline-soft);
+  color: var(--lk-charcoal);
+}
+
+.lk-icon-btn svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* 头像 — 36px 圆形（B.2）；占位图形配色取 {colors.card-tint-lavender} / {colors.stone} */
+.lk-avatar {
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  border-radius: var(--lk-radius-full);
+  background-color: var(--lk-card-tint-lavender);
+  color: var(--lk-brand-purple-800);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--lk-text-caption-bold);
+  line-height: var(--lk-leading-caption-bold);
+  font-weight: 600;
+  overflow: hidden;
+}
+
+.lk-avatar svg {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--lk-radius-full);
+}
+
+.lk-avatar-bg {
+  fill: var(--lk-card-tint-lavender);
+}
+
+.lk-avatar-figure {
+  fill: var(--lk-stone);
+}
+
+/* --------------------------------------------------------------------------
+   5. 视图与页面标题 — DESIGN.md B.2
+   -------------------------------------------------------------------------- */
+.lk-view[hidden] {
+  display: none !important;
+}
+
+.lk-page-head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lk-spacing-xxs);
+}
+
+/* 模块标题 {typography.heading-5} + {colors.charcoal} */
+.lk-page-title {
+  margin: 0;
+  font-size: var(--lk-text-heading-5);
+  line-height: var(--lk-leading-heading-5);
+  font-weight: 600;
+  color: var(--lk-charcoal);
+}
+
+/* 模块说明 {typography.body-sm} + {colors.steel} */
+.lk-page-subtitle {
+  margin: 0;
+  font-size: var(--lk-text-body-sm);
+  line-height: var(--lk-leading-body-sm);
+  font-weight: 400;
+  color: var(--lk-steel);
+}
+
+/* --------------------------------------------------------------------------
+   6. 空状态 — DESIGN.md E.3
+      96px 淡彩圆形容器（{colors.surface}）+ 40px 线性图标（{colors.stone}）
+      标题 {typography.heading-5}（{colors.charcoal}）
+      说明 {typography.body-sm}（{colors.steel}）
+   -------------------------------------------------------------------------- */
+.lk-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: var(--lk-spacing-sm);
+  padding: var(--lk-spacing-xxxl) var(--lk-spacing-xl);
+  background-color: var(--lk-canvas);
+  border: 1px solid var(--lk-hairline);
+  border-radius: var(--lk-radius-lg);
+}
+
+.lk-empty-icon {
+  width: 96px;
+  height: 96px;
+  border-radius: var(--lk-radius-full);
+  background-color: var(--lk-surface);
+  color: var(--lk-stone);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: var(--lk-spacing-xxs);
+}
+
+.lk-empty-icon svg {
+  width: 40px;
+  height: 40px;
+}
+
+.lk-empty-title {
+  margin: 0;
+  font-size: var(--lk-text-heading-5);
+  line-height: var(--lk-leading-heading-5);
+  font-weight: 600;
+  color: var(--lk-charcoal);
+}
+
+.lk-empty-desc {
+  margin: 0;
+  max-width: 360px;
+  font-size: var(--lk-text-body-sm);
+  line-height: var(--lk-leading-body-sm);
+  font-weight: 400;
+  color: var(--lk-steel);
+}
+
+/* --------------------------------------------------------------------------
+   7. 动效偏好 — DESIGN.md H.3：prefers-reduced-motion 下取消动效
+   -------------------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}
