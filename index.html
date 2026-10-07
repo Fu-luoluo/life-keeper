@@ -83,7 +83,165 @@
 </head>
 
 <body class="h-full">
-  <div class="flex min-h-screen bg-lk-canvas font-lk-sans text-lk-ink">
+    <!-- ====================================================================
+         门禁层：未通过主密码验证前，应用外壳保持 hidden，业务路由不可达
+         ==================================================================== -->
+    <div class="w-full" id="gate-views">
+
+      <!-- 视图 A：设置主密码（本机尚无主密码，对应锁定状态机 UNINITIALIZED） -->
+      <section class="lk-auth-screen" id="setup-view" aria-labelledby="setup-title" hidden>
+        <div class="lk-auth-card">
+          <div class="lk-auth-brand">
+            <svg class="lk-brand-mark" viewBox="0 0 32 32" aria-hidden="true" focusable="false">
+              <path fill="var(--lk-mark-1)" d="M16 3c4.2 0 7.2 3 7.3 7.1L16 16z"></path>
+              <path fill="var(--lk-mark-2)" d="M26.4 9.6c2.1 3.6.9 7.7-2.7 9.9L16 16z"></path>
+              <path fill="var(--lk-mark-3)" d="M19.4 27.2c-4 1.1-7.9-1.1-9.1-5L16 16z"></path>
+              <path fill="var(--lk-mark-4)" d="M5.4 20.4C4.2 16.8 6.3 13 9.9 11.8l6.1 4.2z"></path>
+            </svg>
+            <span class="lk-auth-brand-name">LifeKeeper</span>
+          </div>
+
+          <h1 class="lk-auth-title" id="setup-title">设置主密码</h1>
+          <p class="lk-auth-desc">
+            主密码用于加解锁本机保存的全部数据。它只存在于你的设备上，不会被上传，也无法被找回。
+          </p>
+
+          <form class="lk-auth-form" id="setup-form" novalidate>
+            <div class="lk-field">
+              <label class="lk-field-label" for="setup-password">主密码</label>
+              <div class="lk-input-wrap">
+                <input class="lk-input" id="setup-password" name="setup-password" type="password" autocomplete="new-password" placeholder="至少 8 位" aria-describedby="setup-error">
+                <button class="lk-eye-btn" id="setup-password-eye" type="button" aria-pressed="false" aria-label="显示密码">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                    <path d="M2.75 12S6.5 5.75 12 5.75 21.25 12 21.25 12 17.5 18.25 12 18.25 2.75 12 2.75 12z"></path>
+                    <circle cx="12" cy="12" r="3"></circle>
+                  </svg>
+                  <span class="lk-sr-only">显示密码</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- 强度条：DESIGN.md F（4 段、高 6px、段距 4px，仅提示不阻断） -->
+            <div class="lk-strength-row">
+              <div class="lk-strength" id="setup-strength" aria-hidden="true">
+                <span class="lk-strength-seg" data-segment="1"></span>
+                <span class="lk-strength-seg" data-segment="2"></span>
+                <span class="lk-strength-seg" data-segment="3"></span>
+                <span class="lk-strength-seg" data-segment="4"></span>
+              </div>
+              <span class="lk-strength-label" id="setup-strength-label"></span>
+            </div>
+
+            <div class="lk-field">
+              <label class="lk-field-label" for="setup-password-confirm">确认主密码</label>
+              <div class="lk-input-wrap">
+                <input class="lk-input" id="setup-password-confirm" name="setup-password-confirm" type="password" autocomplete="new-password" placeholder="再输入一次">
+                <button class="lk-eye-btn" id="setup-password-confirm-eye" type="button" aria-pressed="false" aria-label="显示密码">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                    <path d="M2.75 12S6.5 5.75 12 5.75 21.25 12 21.25 12 17.5 18.25 12 18.25 2.75 12 2.75 12z"></path>
+                    <circle cx="12" cy="12" r="3"></circle>
+                  </svg>
+                  <span class="lk-sr-only">显示密码</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- 空容器：错误文案由 JS 用 textContent 写入 -->
+            <p class="lk-alert-error" id="setup-error" role="alert"></p>
+
+            <button class="lk-btn lk-btn-primary lk-btn-block" id="setup-submit" type="submit">设置并进入</button>
+          </form>
+
+          <!-- PRD F0-4：不提供找回密码，必须明确提示 -->
+          <p class="lk-auth-warning">
+            忘记主密码将无法恢复任何数据，我们不提供「找回密码」功能。
+          </p>
+        </div>
+      </section>
+
+      <!-- 视图 B：解锁（本机已有主密码，对应锁定状态机 LOCKED） -->
+      <section class="lk-auth-screen" id="unlock-view" aria-labelledby="unlock-title" hidden>
+        <div class="lk-auth-card">
+          <div class="lk-auth-brand">
+            <svg class="lk-brand-mark" viewBox="0 0 32 32" aria-hidden="true" focusable="false">
+              <path fill="var(--lk-mark-1)" d="M16 3c4.2 0 7.2 3 7.3 7.1L16 16z"></path>
+              <path fill="var(--lk-mark-2)" d="M26.4 9.6c2.1 3.6.9 7.7-2.7 9.9L16 16z"></path>
+              <path fill="var(--lk-mark-3)" d="M19.4 27.2c-4 1.1-7.9-1.1-9.1-5L16 16z"></path>
+              <path fill="var(--lk-mark-4)" d="M5.4 20.4C4.2 16.8 6.3 13 9.9 11.8l6.1 4.2z"></path>
+            </svg>
+            <span class="lk-auth-brand-name">LifeKeeper</span>
+          </div>
+
+          <h1 class="lk-auth-title" id="unlock-title">解锁</h1>
+          <p class="lk-auth-desc">输入主密码以查看本机保存的数据。</p>
+
+          <form class="lk-auth-form" id="unlock-form" novalidate>
+            <div class="lk-field">
+              <label class="lk-field-label" for="unlock-password">主密码</label>
+              <div class="lk-input-wrap">
+                <input class="lk-input" id="unlock-password" name="unlock-password" type="password" autocomplete="current-password" aria-describedby="unlock-error">
+                <button class="lk-eye-btn" id="unlock-password-eye" type="button" aria-pressed="false" aria-label="显示密码">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                    <path d="M2.75 12S6.5 5.75 12 5.75 21.25 12 21.25 12 17.5 18.25 12 18.25 2.75 12 2.75 12z"></path>
+                    <circle cx="12" cy="12" r="3"></circle>
+                  </svg>
+                  <span class="lk-sr-only">显示密码</span>
+                </button>
+              </div>
+            </div>
+
+            <p class="lk-alert-error" id="unlock-error" role="alert"></p>
+            <p class="lk-alert-muted" id="unlock-cooldown" role="status"></p>
+
+            <button class="lk-btn lk-btn-primary lk-btn-block" id="unlock-submit" type="submit">解锁</button>
+          </form>
+
+          <p class="lk-auth-warning">
+            主密码无法找回，请务必牢记。忘记密码时只能清空数据重新开始。
+          </p>
+
+          <!-- 忘记主密码的恢复路径：不验证主密码，仅要求输入确认文字 -->
+          <div class="lk-auth-actions">
+            <button class="lk-btn lk-btn-secondary" id="unlock-clear-button" type="button">清空数据重新开始</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- 视图 C：数据损坏（bootstrap 捕获 StorageError 时显示，绝不白屏） -->
+      <section class="lk-auth-screen" id="corrupted-view" aria-labelledby="corrupted-title" hidden>
+        <div class="lk-auth-card">
+          <h1 class="lk-auth-title" id="corrupted-title">本地数据无法读取</h1>
+          <p class="lk-auth-desc">
+            本机保存的数据已损坏或格式不正确，出于安全考虑我们不会自动修改或丢弃它。
+            你可以清空数据后重新开始。
+          </p>
+          <p class="lk-auth-warning">清空会删除本机全部数据，且无法恢复。</p>
+          <div class="lk-auth-actions">
+            <button class="lk-btn lk-btn-secondary" id="corrupted-clear-button" type="button">清空数据重新开始</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- 视图 D：非安全上下文（file:// 打开时 Web Crypto 不可用） -->
+      <section class="lk-auth-screen" id="insecure-view" aria-labelledby="insecure-title" hidden>
+        <div class="lk-auth-card">
+          <h1 class="lk-auth-title" id="insecure-title">需要通过 Live Server 访问</h1>
+          <p class="lk-auth-desc">
+            浏览器的加密接口（Web Crypto）只在安全上下文中可用。直接双击打开 HTML 文件（file://）
+            时接口会被禁用，应用无法安全地保存数据。
+          </p>
+          <p class="lk-auth-warning">
+            请在 VS Code 中右键 index.html → Open with Live Server，然后访问 http://127.0.0.1:5500 。
+          </p>
+        </div>
+      </section>
+
+    </div>
+
+    <!-- ====================================================================
+         应用外壳：仅在 UNLOCKED 状态下移除 hidden
+         ==================================================================== -->
+    <div class="lk-app-shell flex min-h-screen w-full bg-lk-canvas font-lk-sans text-lk-ink" id="app-shell" hidden>
 
     <!-- ====================================================================
          左侧导航栏 — DESIGN.md B.1（v0.1 只实现桌面 / 平板 ≥1024px 的 240px 展开态；
@@ -331,21 +489,132 @@
         <section class="lk-view" id="view-settings" data-page="settings" aria-labelledby="title-settings" hidden>
           <div class="lk-page-head">
             <h1 class="lk-page-title" id="title-settings">设置</h1>
-            <p class="lk-page-subtitle">偏好、安全与数据管理。</p>
+            <p class="lk-page-subtitle">安全与偏好。数据只保存在本机浏览器中。</p>
           </div>
-          <div class="lk-empty-state mt-lk-xl">
-            <div class="lk-empty-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
-                <circle cx="12" cy="12" r="3.25"></circle>
-                <path d="M19.2 14.6a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-2.81 1.17V21a2 2 0 1 1-4 0v-.11a1.65 1.65 0 0 0-2.81-1.17l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0-1.17-2.81H3a2 2 0 1 1 0-4h.11a1.65 1.65 0 0 0 1.17-2.81l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 2.81-1.17V3a2 2 0 1 1 4 0v.11a1.65 1.65 0 0 0 2.81 1.17l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0 1.17 2.81H21a2 2 0 1 1 0 4h-.11a1.65 1.65 0 0 0-1.52.98z"></path>
-              </svg>
-            </div>
-            <p class="lk-empty-title">设置暂无内容</p>
-            <p class="lk-empty-desc">主题、自动锁定与数据导入导出将在后续版本中提供。</p>
+
+          <div class="lk-settings">
+
+            <!-- 一、修改主密码 -->
+            <section class="lk-settings-card" aria-labelledby="settings-password-title">
+              <div class="lk-settings-head">
+                <h2 class="lk-settings-title" id="settings-password-title">修改主密码</h2>
+                <p class="lk-settings-desc">需要先验证当前主密码。修改后会立即用新密钥重新加密已保存的密文。</p>
+              </div>
+
+              <form class="lk-settings-body" id="settings-password-form" novalidate>
+                <div class="lk-field">
+                  <label class="lk-field-label" for="settings-old-password">当前主密码</label>
+                  <div class="lk-input-wrap">
+                    <input class="lk-input" id="settings-old-password" name="settings-old-password" type="password" autocomplete="current-password">
+                    <button class="lk-eye-btn" id="settings-old-password-eye" type="button" aria-pressed="false" aria-label="显示密码">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                        <path d="M2.75 12S6.5 5.75 12 5.75 21.25 12 21.25 12 17.5 18.25 12 18.25 2.75 12 2.75 12z"></path>
+                        <circle cx="12" cy="12" r="3"></circle>
+                      </svg>
+                      <span class="lk-sr-only">显示密码</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div class="lk-field">
+                  <label class="lk-field-label" for="settings-new-password">新主密码</label>
+                  <div class="lk-input-wrap">
+                    <input class="lk-input" id="settings-new-password" name="settings-new-password" type="password" autocomplete="new-password" placeholder="至少 8 位">
+                    <button class="lk-eye-btn" id="settings-new-password-eye" type="button" aria-pressed="false" aria-label="显示密码">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                        <path d="M2.75 12S6.5 5.75 12 5.75 21.25 12 21.25 12 17.5 18.25 12 18.25 2.75 12 2.75 12z"></path>
+                        <circle cx="12" cy="12" r="3"></circle>
+                      </svg>
+                      <span class="lk-sr-only">显示密码</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div class="lk-strength-row">
+                  <div class="lk-strength" id="settings-new-strength" aria-hidden="true">
+                    <span class="lk-strength-seg" data-segment="1"></span>
+                    <span class="lk-strength-seg" data-segment="2"></span>
+                    <span class="lk-strength-seg" data-segment="3"></span>
+                    <span class="lk-strength-seg" data-segment="4"></span>
+                  </div>
+                  <span class="lk-strength-label" id="settings-new-strength-label"></span>
+                </div>
+
+                <div class="lk-field">
+                  <label class="lk-field-label" for="settings-new-password-confirm">确认新主密码</label>
+                  <div class="lk-input-wrap">
+                    <input class="lk-input" id="settings-new-password-confirm" name="settings-new-password-confirm" type="password" autocomplete="new-password" placeholder="再输入一次">
+                    <button class="lk-eye-btn" id="settings-new-password-confirm-eye" type="button" aria-pressed="false" aria-label="显示密码">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                        <path d="M2.75 12S6.5 5.75 12 5.75 21.25 12 21.25 12 17.5 18.25 12 18.25 2.75 12 2.75 12z"></path>
+                        <circle cx="12" cy="12" r="3"></circle>
+                      </svg>
+                      <span class="lk-sr-only">显示密码</span>
+                    </button>
+                  </div>
+                </div>
+
+                <p class="lk-alert-error" id="settings-password-error" role="alert"></p>
+
+                <div class="lk-settings-actions">
+                  <button class="lk-btn lk-btn-primary" id="settings-password-submit" type="submit">保存新主密码</button>
+                </div>
+              </form>
+            </section>
+
+            <!-- 二、自动锁定 -->
+            <section class="lk-settings-card" aria-labelledby="settings-autolock-title">
+              <div class="lk-settings-head">
+                <h2 class="lk-settings-title" id="settings-autolock-title">自动锁定</h2>
+                <p class="lk-settings-desc">无操作达到所选时长后自动锁定，需要重新输入主密码。保存后立即生效。</p>
+              </div>
+              <div class="lk-settings-body">
+                <div class="lk-field lk-field-narrow">
+                  <label class="lk-field-label" for="settings-auto-lock">无操作时长</label>
+                  <select class="lk-select" id="settings-auto-lock" name="settings-auto-lock"></select>
+                </div>
+              </div>
+            </section>
+
+            <!-- 三、清空所有数据（危险操作） -->
+            <section class="lk-settings-card" aria-labelledby="settings-clear-title">
+              <div class="lk-settings-head">
+                <h2 class="lk-settings-title" id="settings-clear-title">清空所有数据</h2>
+                <p class="lk-settings-desc">删除本机保存的全部数据并清除主密码。此操作不可撤销，也无法恢复。</p>
+              </div>
+              <div class="lk-settings-body">
+                <div class="lk-settings-actions">
+                  <button class="lk-btn lk-btn-danger" id="settings-clear-button" type="button">清空所有数据</button>
+                </div>
+              </div>
+            </section>
+
           </div>
         </section>
 
       </main>
+    </div>
+  </div>
+
+  <!-- Toast 容器（DESIGN.md E.2）与 Modal 根节点（DESIGN.md E.1） -->
+  <div class="lk-toast-container" id="toast-container" role="status" aria-live="polite" hidden></div>
+
+  <div class="lk-modal-overlay" id="modal-root" role="dialog" aria-modal="true" aria-labelledby="modal-title" hidden>
+    <div class="lk-modal" role="document">
+      <header class="lk-modal-head">
+        <div class="lk-modal-head-text">
+          <h2 class="lk-modal-title" id="modal-title"></h2>
+          <p class="lk-modal-subtitle" id="modal-subtitle" hidden></p>
+        </div>
+        <button class="lk-icon-btn" id="modal-close" type="button" aria-label="关闭">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+            <path d="M6.5 6.5 17.5 17.5"></path>
+            <path d="M17.5 6.5 6.5 17.5"></path>
+          </svg>
+        </button>
+      </header>
+      <div class="lk-modal-body" id="modal-body"></div>
+      <footer class="lk-modal-footer" id="modal-footer"></footer>
     </div>
   </div>
 

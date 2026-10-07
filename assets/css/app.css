@@ -510,7 +510,597 @@ html:not(.lk-ready) body {
 }
 
 /* --------------------------------------------------------------------------
-   7. 动效偏好 — DESIGN.md H.3：prefers-reduced-motion 下取消动效
+   7. 门禁视图（设置主密码 / 解锁 / 数据损坏 / 非安全上下文）
+   -------------------------------------------------------------------------- */
+
+/* 整个外壳在锁定期间必须彻底不占位（flex 会盖掉原生 hidden，这里显式兜底） */
+.lk-app-shell[hidden],
+#gate-views[hidden],
+.lk-auth-screen[hidden],
+.lk-auth-card[hidden] {
+  display: none !important;
+}
+
+/* 门禁页：桌面居中卡片 */
+.lk-auth-screen {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  min-height: 100dvh;
+  padding: var(--lk-spacing-xxl);
+  background-color: var(--lk-surface);
+}
+
+/* 卡片使用 {components.card-base}：{colors.canvas} + {rounded.lg} + 1px {colors.hairline} */
+.lk-auth-card {
+  width: 100%;
+  max-width: 480px;
+  padding: var(--lk-spacing-xxl);
+  background-color: var(--lk-canvas);
+  border: 1px solid var(--lk-hairline);
+  border-radius: var(--lk-radius-lg);
+  box-shadow: var(--lk-shadow-level-1);
+}
+
+.lk-auth-brand {
+  display: flex;
+  align-items: center;
+  gap: var(--lk-spacing-sm);
+  margin-bottom: var(--lk-spacing-xl);
+}
+
+.lk-auth-brand-name {
+  font-size: var(--lk-text-heading-5);
+  line-height: var(--lk-leading-heading-5);
+  font-weight: 600;
+  color: var(--lk-charcoal);
+}
+
+/* {typography.heading-4} + {colors.charcoal} */
+.lk-auth-title {
+  margin: 0;
+  font-size: var(--lk-text-heading-4);
+  line-height: var(--lk-leading-heading-4);
+  font-weight: 600;
+  color: var(--lk-charcoal);
+}
+
+/* {typography.body-sm} + {colors.steel} */
+.lk-auth-desc {
+  margin: var(--lk-spacing-xs) 0 0;
+  font-size: var(--lk-text-body-sm);
+  line-height: var(--lk-leading-body-sm);
+  font-weight: 400;
+  color: var(--lk-steel);
+}
+
+.lk-auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lk-spacing-md);
+  margin-top: var(--lk-spacing-xl);
+}
+
+/* PRD F0-4：忘记主密码不可恢复的强提示 */
+.lk-auth-warning {
+  margin: var(--lk-spacing-lg) 0 0;
+  padding: var(--lk-spacing-sm) var(--lk-spacing-md);
+  background-color: var(--lk-card-tint-yellow);
+  border-radius: var(--lk-radius-md);
+  font-size: var(--lk-text-caption);
+  line-height: var(--lk-leading-caption);
+  color: var(--lk-charcoal);
+}
+
+.lk-auth-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--lk-spacing-sm);
+  margin-top: var(--lk-spacing-lg);
+}
+
+/* --------------------------------------------------------------------------
+   8. 表单基础件（{components.text-input} / {components.text-input-focused}）
+   -------------------------------------------------------------------------- */
+
+.lk-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lk-spacing-xxs);
+}
+
+.lk-field-narrow {
+  max-width: 240px;
+}
+
+/* {typography.body-sm-medium} + {colors.slate} */
+.lk-field-label {
+  font-size: var(--lk-text-body-sm);
+  line-height: var(--lk-leading-body-sm);
+  font-weight: 500;
+  color: var(--lk-slate);
+}
+
+/* {components.text-input}：{colors.canvas} 底、{colors.ink} 字、1px {colors.hairline-strong}、
+   {rounded.md}、padding {spacing.sm} {spacing.md}、高度 44px */
+.lk-input {
+  width: 100%;
+  height: 44px;
+  padding: var(--lk-spacing-sm) var(--lk-spacing-md);
+  background-color: var(--lk-canvas);
+  color: var(--lk-ink);
+  font-family: inherit;
+  font-size: var(--lk-text-body-md);
+  line-height: var(--lk-leading-body-md);
+  border: 1px solid var(--lk-hairline-strong);
+  border-radius: var(--lk-radius-md);
+  outline: none;
+  transition: border-color var(--lk-motion-fast) var(--lk-ease),
+              box-shadow var(--lk-motion-fast) var(--lk-ease);
+}
+
+.lk-input::placeholder {
+  color: var(--lk-muted);
+  opacity: 1;
+}
+
+/* {components.text-input-focused}：2px {colors.primary} */
+.lk-input:focus {
+  border-color: var(--lk-primary);
+  box-shadow: inset 0 0 0 1px var(--lk-primary);
+}
+
+.lk-input:disabled {
+  background-color: var(--lk-surface);
+  color: var(--lk-muted);
+  border-color: var(--lk-hairline);
+  cursor: not-allowed;
+}
+
+/* 带眼睛按钮的输入框容器 */
+.lk-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.lk-input-wrap .lk-input {
+  padding-right: 44px;
+}
+
+/* 眼睛按钮：ghost 图标按钮（DESIGN.md F：18px、{colors.steel}，悬停 {colors.charcoal}） */
+.lk-eye-btn {
+  position: absolute;
+  right: var(--lk-spacing-xxs);
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--lk-radius-full);
+  background-color: transparent;
+  color: var(--lk-steel);
+  cursor: pointer;
+  transition: background-color var(--lk-motion-fast) var(--lk-ease),
+              color var(--lk-motion-fast) var(--lk-ease);
+}
+
+.lk-eye-btn:hover {
+  background-color: var(--lk-hairline-soft);
+  color: var(--lk-charcoal);
+}
+
+.lk-eye-btn svg {
+  width: 18px;
+  height: 18px;
+}
+
+.lk-select {
+  height: 44px;
+  padding: var(--lk-spacing-sm) var(--lk-spacing-md);
+  background-color: var(--lk-canvas);
+  color: var(--lk-ink);
+  font-family: inherit;
+  font-size: var(--lk-text-body-md);
+  line-height: var(--lk-leading-body-md);
+  border: 1px solid var(--lk-hairline-strong);
+  border-radius: var(--lk-radius-md);
+  outline: none;
+  cursor: pointer;
+  transition: border-color var(--lk-motion-fast) var(--lk-ease);
+}
+
+.lk-select:focus {
+  border-color: var(--lk-primary);
+  box-shadow: inset 0 0 0 1px var(--lk-primary);
+}
+
+/* --------------------------------------------------------------------------
+   9. 按钮（DESIGN.md 前文 button-* + H.1 状态映射）
+   -------------------------------------------------------------------------- */
+
+.lk-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--lk-spacing-xs);
+  padding: 10px 18px;
+  font-family: inherit;
+  font-size: var(--lk-text-body-sm);
+  line-height: 1.3;
+  font-weight: 500;
+  border: 1px solid transparent;
+  border-radius: var(--lk-radius-md);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color var(--lk-motion-fast) var(--lk-ease),
+              border-color var(--lk-motion-fast) var(--lk-ease),
+              color var(--lk-motion-fast) var(--lk-ease);
+}
+
+.lk-btn:disabled {
+  background-color: var(--lk-hairline);
+  color: var(--lk-muted);
+  border-color: transparent;
+  cursor: not-allowed;
+}
+
+/* button-primary：hover {colors.primary-pressed}，按下 {colors.primary-deep} */
+.lk-btn-primary {
+  background-color: var(--lk-primary);
+  color: var(--lk-on-primary);
+}
+
+.lk-btn-primary:hover:not(:disabled) {
+  background-color: var(--lk-primary-pressed);
+}
+
+.lk-btn-primary:active:not(:disabled) {
+  background-color: var(--lk-primary-deep);
+}
+
+/* button-secondary：透明底 + 1px {colors.hairline-strong} + {colors.ink} */
+.lk-btn-secondary {
+  background-color: transparent;
+  color: var(--lk-ink);
+  border-color: var(--lk-hairline-strong);
+}
+
+.lk-btn-secondary:hover:not(:disabled) {
+  background-color: var(--lk-hairline-soft);
+}
+
+/* button-ghost */
+.lk-btn-ghost {
+  background-color: transparent;
+  color: var(--lk-ink);
+}
+
+.lk-btn-ghost:hover:not(:disabled) {
+  background-color: var(--lk-hairline-soft);
+}
+
+/* 危险操作：复用 {colors.semantic-error}（DESIGN.md 未定义 danger 组件，
+   按「不新增色值」原则只使用既有 Token；对比度实测 4.51:1，满足 AA） */
+.lk-btn-danger {
+  background-color: var(--lk-semantic-error);
+  color: var(--lk-on-primary);
+}
+
+.lk-btn-danger:hover:not(:disabled) {
+  background-color: var(--lk-ink-deep);
+}
+
+.lk-btn-danger:disabled {
+  background-color: var(--lk-hairline);
+  color: var(--lk-muted);
+}
+
+.lk-btn-block {
+  width: 100%;
+}
+
+/* --------------------------------------------------------------------------
+   10. 强度条（DESIGN.md F）：4 段、高 6px、{rounded.xs}、段距 4px
+   -------------------------------------------------------------------------- */
+
+.lk-strength-row {
+  display: flex;
+  align-items: center;
+  gap: var(--lk-spacing-sm);
+}
+
+.lk-strength {
+  display: flex;
+  flex: 1 1 auto;
+  gap: var(--lk-spacing-xxs);
+}
+
+.lk-strength-seg {
+  flex: 1 1 0;
+  height: 6px;
+  border-radius: var(--lk-radius-xs);
+  background-color: var(--lk-hairline);
+}
+
+/* {typography.caption-bold} + {colors.steel} */
+.lk-strength-label {
+  flex-shrink: 0;
+  width: 32px;
+  text-align: right;
+  font-size: var(--lk-text-caption-bold);
+  line-height: var(--lk-leading-caption-bold);
+  font-weight: 600;
+  color: var(--lk-steel);
+}
+
+/* --------------------------------------------------------------------------
+   11. 提示文字
+   -------------------------------------------------------------------------- */
+
+/* 错误：{colors.semantic-error}（canvas 底对比度 4.51:1） */
+.lk-alert-error {
+  margin: 0;
+  min-height: 20px;
+  font-size: var(--lk-text-caption);
+  line-height: var(--lk-leading-caption);
+  color: var(--lk-semantic-error);
+}
+
+.lk-alert-error:empty {
+  min-height: 0;
+}
+
+/* 冷却倒计时等次要提示：{colors.steel}（canvas 底对比度 4.54:1，优于 warning 的 3.77:1） */
+.lk-alert-muted {
+  margin: 0;
+  font-size: var(--lk-text-caption);
+  line-height: var(--lk-leading-caption);
+  color: var(--lk-steel);
+}
+
+.lk-alert-muted:empty {
+  display: none;
+}
+
+/* --------------------------------------------------------------------------
+   12. 设置页
+   -------------------------------------------------------------------------- */
+
+.lk-settings {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lk-spacing-xl); /* 卡片之间间距 {spacing.xl}（B.2） */
+  margin-top: var(--lk-spacing-xl);
+  max-width: 720px;
+}
+
+/* {components.card-base} */
+.lk-settings-card {
+  padding: var(--lk-spacing-xl);
+  background-color: var(--lk-canvas);
+  border: 1px solid var(--lk-hairline);
+  border-radius: var(--lk-radius-lg);
+}
+
+.lk-settings-head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lk-spacing-xxs);
+}
+
+.lk-settings-title {
+  margin: 0;
+  font-size: var(--lk-text-heading-5);
+  line-height: var(--lk-leading-heading-5);
+  font-weight: 600;
+  color: var(--lk-charcoal);
+}
+
+.lk-settings-desc {
+  margin: 0;
+  font-size: var(--lk-text-body-sm);
+  line-height: var(--lk-leading-body-sm);
+  color: var(--lk-steel);
+}
+
+.lk-settings-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lk-spacing-md);
+  margin-top: var(--lk-spacing-lg);
+}
+
+.lk-settings-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--lk-spacing-sm);
+}
+
+/* --------------------------------------------------------------------------
+   13. Modal（DESIGN.md E.1）
+   -------------------------------------------------------------------------- */
+
+.lk-modal-overlay[hidden],
+.lk-toast-container[hidden] {
+  display: none !important;
+}
+
+.lk-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--lk-spacing-xl);
+  background-color: rgba(15, 15, 15, 0.4);
+  animation: lk-fade-in var(--lk-motion-base) var(--lk-ease);
+}
+
+.lk-modal {
+  width: 100%;
+  max-width: 480px;
+  max-height: calc(100vh - 48px);
+  display: flex;
+  flex-direction: column;
+  background-color: var(--lk-canvas);
+  border-radius: var(--lk-radius-lg);
+  box-shadow: var(--lk-shadow-level-4);
+  animation: lk-modal-in var(--lk-motion-base) var(--lk-ease);
+  overflow: hidden;
+}
+
+.lk-modal-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--lk-spacing-md);
+  padding: var(--lk-spacing-lg) var(--lk-spacing-xxl) 0;
+}
+
+.lk-modal-head-text {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lk-spacing-xxs);
+  min-width: 0;
+}
+
+/* {typography.heading-5} + {colors.charcoal} */
+.lk-modal-title {
+  margin: 0;
+  font-size: var(--lk-text-heading-5);
+  line-height: var(--lk-leading-heading-5);
+  font-weight: 600;
+  color: var(--lk-charcoal);
+}
+
+.lk-modal-subtitle {
+  margin: 0;
+  font-size: var(--lk-text-caption);
+  line-height: var(--lk-leading-caption);
+  color: var(--lk-steel);
+}
+
+.lk-modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lk-spacing-md);
+  padding: var(--lk-spacing-lg) var(--lk-spacing-xxl);
+  overflow-y: auto;
+}
+
+.lk-modal-text {
+  margin: 0;
+  font-size: var(--lk-text-body-sm);
+  line-height: var(--lk-leading-body-sm);
+  color: var(--lk-slate);
+}
+
+.lk-modal-confirm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lk-spacing-xxs);
+}
+
+.lk-modal-confirm-hint {
+  font-size: var(--lk-text-caption-bold);
+  line-height: var(--lk-leading-caption-bold);
+  font-weight: 600;
+  color: var(--lk-charcoal);
+}
+
+.lk-modal-error {
+  margin: 0;
+  font-size: var(--lk-text-caption);
+  line-height: var(--lk-leading-caption);
+  color: var(--lk-semantic-error);
+}
+
+.lk-modal-error[hidden] {
+  display: none !important;
+}
+
+/* 底部右对齐操作按钮，主按钮在最右 */
+.lk-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--lk-spacing-sm);
+  padding: 0 var(--lk-spacing-xxl) var(--lk-spacing-xl);
+}
+
+/* --------------------------------------------------------------------------
+   14. Toast（DESIGN.md E.2）
+   -------------------------------------------------------------------------- */
+
+.lk-toast-container {
+  position: fixed;
+  top: calc(var(--lk-topbar-height) + var(--lk-spacing-md));
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 90;
+}
+
+.lk-toast {
+  display: flex;
+  align-items: center;
+  gap: var(--lk-spacing-xs);
+  padding: var(--lk-spacing-sm) var(--lk-spacing-md);
+  background-color: var(--lk-ink-deep);
+  color: var(--lk-on-dark);
+  font-size: var(--lk-text-body-sm);
+  line-height: var(--lk-leading-body-sm);
+  border-radius: var(--lk-radius-md);
+  box-shadow: var(--lk-shadow-level-2);
+  animation: lk-fade-in 150ms var(--lk-ease);
+}
+
+.lk-toast-dot {
+  width: 8px;
+  height: 8px;
+  flex-shrink: 0;
+  border-radius: var(--lk-radius-full);
+}
+
+.lk-toast-dot.is-success {
+  background-color: var(--lk-brand-green);
+}
+
+.lk-toast-dot.is-error {
+  background-color: var(--lk-semantic-error);
+}
+
+/* --------------------------------------------------------------------------
+   15. 动效关键帧（DESIGN.md H.3：弹窗 200ms 轻微上移 + 淡入，Toast 150ms 淡入）
+   -------------------------------------------------------------------------- */
+
+@keyframes lk-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes lk-modal-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* --------------------------------------------------------------------------
+   16. 动效偏好 — DESIGN.md H.3：prefers-reduced-motion 下取消动效
    -------------------------------------------------------------------------- */
 @media (prefers-reduced-motion: reduce) {
   *,

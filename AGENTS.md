@@ -13,6 +13,7 @@
 - 必须通过 **Live Server** 访问（如 `http://127.0.0.1:5500`）：Web Crypto 仅在安全上下文可用，**禁止直接双击 index.html（file://）**。
 - VSCode 中右键 `index.html` → Open with Live Server。
 - 无构建步骤；若使用 Tailwind CLI，则以其构建产物为准。
+- 禁止自行启动 Live Server / 无头浏览器做页面验证；页面审查由用户完成，Agent 只做  不依赖浏览器的轻量自检并输出手动验证清单。
 
 ## 3. 视觉强制规则
 
