@@ -36,11 +36,13 @@
 
   /* Colors — Brand Spectrum */
   --lk-brand-purple: #7b3ff2;
+  --lk-brand-purple-300: #d6b6f6;
   --lk-brand-purple-800: #391c57;
   --lk-brand-orange: #dd5b00;
   --lk-brand-orange-deep: #793400;
   --lk-brand-teal: #2a9d99;
   --lk-brand-pink: #ff64c8;
+  --lk-brand-pink-deep: #a02e6d;
   --lk-brand-green: #1aae39;
   --lk-brand-yellow: #f5d75e;
   --lk-brand-brown: #523410;
@@ -84,6 +86,8 @@
      注意：CSS 自定义属性名只能由字母/数字/连字符组成，
      因此这里用 --lk-text-* / --lk-leading-* / --lk-tracking-* 平面命名承接 {typography.*}，
      不使用 {typography.heading-5} 里的小数点，也不使用双冒号（双冒号命名会被浏览器整条丢弃）。 */
+  --lk-text-heading-3: 28px;
+  --lk-leading-heading-3: 1.25;
   --lk-text-heading-4: 22px;
   --lk-leading-heading-4: 1.3;
   --lk-text-heading-5: 18px;
@@ -147,6 +151,7 @@
 
 /* 设计 Token 的别名层：集中说明「哪个 CSS 变量对应 DESIGN.md 的哪个 {typography.*}」
    DESIGN.md 组件规范 → 本文件变量：
+     {typography.heading-3}     → --lk-text-heading-3      / --lk-leading-heading-3
      {typography.heading-4}     → --lk-text-heading-4      / --lk-leading-heading-4
      {typography.heading-5}     → --lk-text-heading-5      / --lk-leading-heading-5
      {typography.subtitle}      → --lk-text-subtitle       / --lk-leading-subtitle
@@ -1100,7 +1105,532 @@ html:not(.lk-ready) body {
 }
 
 /* --------------------------------------------------------------------------
-   16. 动效偏好 — DESIGN.md H.3：prefers-reduced-motion 下取消动效
+   17. 记一笔 / 列表（DESIGN.md C 列表行、E.1 Modal、E.3 空状态）
+   -------------------------------------------------------------------------- */
+
+/* 页头：标题在左、主按钮在右 */
+.lk-page-head-row {
+  flex-direction: row;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--lk-spacing-md);
+}
+
+.lk-page-head-text {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lk-spacing-xxs);
+  min-width: 0;
+}
+
+/* 小尺寸按钮：仅用于工具行，保持 {rounded.md} 矩形与 44px 触控目标以下的视觉层级 */
+.lk-btn-sm {
+  padding: 8px 12px;
+  font-size: var(--lk-text-body-sm);
+}
+
+/* 月度汇总条：三张统计卡片（DESIGN.md D 的配色，数字用 charcoal / brand-purple-800） */
+.lk-summary-bar {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--lk-spacing-md);
+  margin-top: var(--lk-spacing-xl);
+}
+
+.lk-summary-item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lk-spacing-xxs);
+  padding: var(--lk-spacing-lg);
+  border: 1px solid var(--lk-hairline);
+  border-radius: var(--lk-radius-lg);
+  background-color: var(--lk-canvas);
+}
+
+.lk-summary-item[data-variant='income'] {
+  background-color: var(--lk-card-tint-mint);
+}
+
+.lk-summary-item[data-variant='expense'] {
+  background-color: var(--lk-surface);
+}
+
+.lk-summary-item[data-variant='balance'] {
+  background-color: var(--lk-card-tint-lavender);
+}
+
+/* 标题 {typography.body-sm} + {colors.slate} */
+.lk-summary-label {
+  font-size: var(--lk-text-body-sm);
+  line-height: var(--lk-leading-body-sm);
+  color: var(--lk-slate);
+}
+
+/* 数字 {typography.heading-3} 字重 600；不用亮绿 / 亮红，保证淡彩底上的对比度 */
+.lk-summary-value {
+  font-size: var(--lk-text-heading-3);
+  line-height: var(--lk-leading-heading-3);
+  font-weight: 600;
+  color: var(--lk-charcoal);
+  font-variant-numeric: tabular-nums;
+}
+
+.lk-summary-item[data-variant='balance'] .lk-summary-value {
+  color: var(--lk-brand-purple-800);
+}
+
+/* 工具行 */
+.lk-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--lk-spacing-md);
+  flex-wrap: wrap;
+  margin-top: var(--lk-spacing-xl);
+}
+
+.lk-toolbar-secondary {
+  margin-top: var(--lk-spacing-sm);
+}
+
+.lk-month-nav {
+  display: flex;
+  align-items: center;
+  gap: var(--lk-spacing-xs);
+}
+
+/* 月份选择：容器负责给隐藏 input 定位，按钮是唯一可见交互点 */
+.lk-month-picker {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+/* 月份按钮：圆角 {rounded.sm}，文字 {typography.body-md-medium} + {colors.charcoal}
+   hover 背景 {colors.hairline-soft}；focus-visible 沿用全局 2px {colors.primary} 焦点环（H.2） */
+.lk-month-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--lk-spacing-xs);
+  min-width: 96px;
+  min-height: 36px;
+  padding: var(--lk-spacing-xs) var(--lk-spacing-sm);
+  border: 0;
+  border-radius: var(--lk-radius-sm);
+  background-color: transparent;
+  color: var(--lk-charcoal);
+  font-family: inherit;
+  font-size: var(--lk-text-body-md);
+  line-height: var(--lk-leading-body-md);
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color var(--lk-motion-fast) var(--lk-ease);
+}
+
+.lk-month-button:hover {
+  background-color: var(--lk-hairline-soft);
+}
+
+/* 日历小图标 16px：{colors.slate}，与文字同属一个可点击目标 */
+.lk-month-button svg[data-variant='icon'] {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  color: var(--lk-slate);
+}
+
+/* 月份文字 */
+.lk-month-button-label {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* 隐藏的 input[type=month]：视觉不可见但保持可聚焦，
+   锚定在按钮下方，使原生选择器尽量贴近触发位置弹出。
+   不用 display:none / visibility:hidden，否则 showPicker() 会失效。 */
+.lk-month-input {
+  position: absolute;
+  left: 50%;
+  top: 100%;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  opacity: 0;
+  pointer-events: none;
+  color-scheme: light;
+}
+
+/* 分段控件（DESIGN.md segmented-tab / segmented-tab-active） */
+.lk-segmented {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--lk-spacing-xxs);
+  gap: var(--lk-spacing-xxs);
+  background-color: var(--lk-surface);
+  border: 1px solid var(--lk-hairline);
+  border-radius: var(--lk-radius-md);
+}
+
+.lk-segmented-item {
+  padding: var(--lk-spacing-xs) var(--lk-spacing-md);
+  min-height: 32px;
+  border: 0;
+  border-radius: var(--lk-radius-sm);
+  background-color: transparent;
+  color: var(--lk-steel);
+  font-family: inherit;
+  font-size: var(--lk-text-body-sm);
+  line-height: var(--lk-leading-body-sm);
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color var(--lk-motion-fast) var(--lk-ease),
+              color var(--lk-motion-fast) var(--lk-ease);
+}
+
+.lk-segmented-item:hover {
+  background-color: var(--lk-hairline-soft);
+  color: var(--lk-charcoal);
+}
+
+/* 选中态：{colors.ink-deep} 底 + {colors.on-dark} 字（沿 segmented-tab-active 的语义） */
+.lk-segmented-item.is-active {
+  background-color: var(--lk-ink-deep);
+  color: var(--lk-on-dark);
+}
+
+/* 筛选用的分段控件在页面里更靠右、更紧凑 */
+.lk-segmented-filter .lk-segmented-item {
+  padding: var(--lk-spacing-xs) var(--lk-spacing-sm);
+}
+
+/* 行内字段与紧凑下拉 */
+.lk-field-inline {
+  flex-direction: row;
+  align-items: center;
+}
+
+.lk-select-sm {
+  height: 36px;
+  padding: 0 var(--lk-spacing-sm);
+  font-size: var(--lk-text-body-sm);
+  line-height: var(--lk-leading-body-sm);
+}
+
+.lk-search-pill-sm {
+  height: 36px;
+  width: 260px;
+}
+
+.lk-search-pill-sm .lk-search-input {
+  font-size: var(--lk-text-body-sm);
+}
+
+/* 筛选提示 {typography.caption} + {colors.steel} */
+.lk-filter-hint {
+  margin: var(--lk-spacing-sm) 0 0;
+  font-size: var(--lk-text-caption);
+  line-height: var(--lk-leading-caption);
+  color: var(--lk-steel);
+}
+
+.lk-filter-hint:empty {
+  display: none;
+}
+
+.lk-list-block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lk-spacing-xl);
+  margin-top: var(--lk-spacing-md);
+}
+
+/* 日分组 */
+.lk-day-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.lk-day-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--lk-spacing-md);
+  padding: 0 var(--lk-spacing-md) var(--lk-spacing-xs);
+}
+
+/* 组标题 {typography.caption-bold} + {colors.steel} */
+.lk-day-title {
+  font-size: var(--lk-text-caption-bold);
+  line-height: var(--lk-leading-caption-bold);
+  font-weight: 600;
+  color: var(--lk-steel);
+}
+
+.lk-day-subtotal {
+  font-size: var(--lk-text-caption-bold);
+  line-height: var(--lk-leading-caption-bold);
+  font-weight: 600;
+  color: var(--lk-steel);
+  font-variant-numeric: tabular-nums;
+}
+
+/* 行容器：{rounded.lg} 卡片式分组（1px {colors.hairline}） */
+.lk-row-list {
+  background-color: var(--lk-canvas);
+  border: 1px solid var(--lk-hairline);
+  border-radius: var(--lk-radius-lg);
+  overflow: hidden;
+}
+
+/* 列表行（DESIGN.md C）：内边距 {spacing.sm} {spacing.md} */
+.lk-row {
+  display: flex;
+  align-items: center;
+  gap: var(--lk-spacing-md);
+  padding: var(--lk-spacing-sm) var(--lk-spacing-md);
+  border-bottom: 1px solid var(--lk-hairline-soft);
+  transition: background-color var(--lk-motion-fast) var(--lk-ease);
+}
+
+.lk-row:last-child {
+  border-bottom: 0;
+}
+
+.lk-row:hover {
+  background-color: var(--lk-surface-soft);
+}
+
+/* 左侧 36px 淡彩图标容器：{rounded.md}，18px 图标，配色由 data-tint / data-ink 决定 */
+.lk-row-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  border-radius: var(--lk-radius-md);
+}
+
+[data-tint='peach'] { background-color: var(--lk-card-tint-peach); }
+[data-tint='rose'] { background-color: var(--lk-card-tint-rose); }
+[data-tint='mint'] { background-color: var(--lk-card-tint-mint); }
+[data-tint='lavender'] { background-color: var(--lk-card-tint-lavender); }
+[data-tint='sky'] { background-color: var(--lk-card-tint-sky); }
+[data-tint='yellow'] { background-color: var(--lk-card-tint-yellow); }
+[data-tint='yellow-bold'] { background-color: var(--lk-card-tint-yellow-bold); }
+[data-tint='cream'] { background-color: var(--lk-card-tint-cream); }
+[data-tint='gray'] { background-color: var(--lk-card-tint-gray); }
+
+[data-ink='brand-orange-deep'] { color: var(--lk-brand-orange-deep); }
+[data-ink='brand-pink-deep'] { color: var(--lk-brand-pink-deep); }
+[data-ink='brand-purple-800'] { color: var(--lk-brand-purple-800); }
+[data-ink='brand-green'] { color: var(--lk-brand-green); }
+[data-ink='brand-brown'] { color: var(--lk-brand-brown); }
+[data-ink='link-blue'] { color: var(--lk-link-blue); }
+[data-ink='charcoal'] { color: var(--lk-charcoal); }
+[data-ink='slate'] { color: var(--lk-slate); }
+
+.lk-row-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+/* 主文本 {typography.body-md-medium} + {colors.charcoal}，单行省略 */
+.lk-row-title {
+  font-size: var(--lk-text-body-md);
+  line-height: var(--lk-leading-body-md);
+  font-weight: 500;
+  color: var(--lk-charcoal);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 副文本 {typography.body-sm} + {colors.steel} */
+.lk-row-subtitle {
+  font-size: var(--lk-text-body-sm);
+  line-height: var(--lk-leading-body-sm);
+  color: var(--lk-steel);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lk-row-aside {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+/* 右侧主值 {typography.body-md-medium}：支出 {colors.semantic-error}、收入 {colors.brand-green} */
+.lk-row-amount {
+  font-size: var(--lk-text-body-md);
+  line-height: var(--lk-leading-body-md);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.lk-row-amount.is-expense {
+  color: var(--lk-semantic-error);
+}
+
+.lk-row-amount.is-income {
+  color: var(--lk-brand-green);
+}
+
+/* 右侧次值 {typography.caption-bold} + {colors.steel} */
+.lk-row-time {
+  font-size: var(--lk-text-caption-bold);
+  line-height: var(--lk-leading-caption-bold);
+  font-weight: 600;
+  color: var(--lk-steel);
+}
+
+/* 行内操作：默认半透明，行悬停或键盘聚焦时显现，避免列表视觉噪音 */
+.lk-row-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--lk-spacing-xxs);
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity var(--lk-motion-fast) var(--lk-ease);
+}
+
+.lk-row:hover .lk-row-actions,
+.lk-row:focus-within .lk-row-actions {
+  opacity: 1;
+}
+
+/* 小号圆形图标按钮（{rounded.full} 允许用于圆形图标按钮） */
+.lk-icon-btn-sm {
+  width: 32px;
+  height: 32px;
+}
+
+.lk-icon-btn-sm svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* --------------------------------------------------------------------------
+   18. Modal 内表单（记一笔 / 编辑）
+   -------------------------------------------------------------------------- */
+
+.lk-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lk-spacing-md);
+}
+
+.lk-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--lk-spacing-md);
+}
+
+/* 带前缀的输入框（金额 ¥） */
+.lk-input-affix {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.lk-input-affix .lk-input {
+  padding-left: 32px;
+}
+
+.lk-input-prefix {
+  position: absolute;
+  left: var(--lk-spacing-md);
+  font-size: var(--lk-text-body-md);
+  line-height: var(--lk-leading-body-md);
+  color: var(--lk-steel);
+  pointer-events: none;
+}
+
+/* 分类 chip 网格 */
+.lk-chip-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--lk-spacing-xs);
+}
+
+.lk-chip {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--lk-spacing-xs);
+  min-height: 40px;
+  padding: var(--lk-spacing-xs) var(--lk-spacing-sm);
+  border: 1px solid var(--lk-hairline);
+  border-radius: var(--lk-radius-md);
+  background-color: var(--lk-canvas);
+  color: var(--lk-slate);
+  font-family: inherit;
+  font-size: var(--lk-text-body-sm);
+  line-height: var(--lk-leading-body-sm);
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color var(--lk-motion-fast) var(--lk-ease),
+              border-color var(--lk-motion-fast) var(--lk-ease),
+              color var(--lk-motion-fast) var(--lk-ease);
+}
+
+.lk-chip:hover {
+  background-color: var(--lk-hairline-soft);
+}
+
+/* 选中态：淡彩底（对应分类 tint）+ 深色字（{colors.brand-purple-800} 作统一强调） */
+.lk-chip.is-active {
+  border-color: var(--lk-primary);
+  color: var(--lk-charcoal);
+}
+
+.lk-chip svg {
+  flex-shrink: 0;
+  color: var(--lk-steel);
+}
+
+.lk-chip.is-active svg {
+  color: var(--lk-primary);
+}
+
+/* 快捷日期按钮 */
+.lk-quick-row {
+  display: flex;
+  gap: var(--lk-spacing-xs);
+  margin-top: var(--lk-spacing-xs);
+}
+
+.lk-quick-btn {
+  padding: var(--lk-spacing-xxs) var(--lk-spacing-xs);
+  border: 1px solid var(--lk-hairline);
+  border-radius: var(--lk-radius-sm);
+  background-color: transparent;
+  color: var(--lk-steel);
+  font-family: inherit;
+  font-size: var(--lk-text-caption);
+  line-height: var(--lk-leading-caption);
+  cursor: pointer;
+  transition: background-color var(--lk-motion-fast) var(--lk-ease),
+              color var(--lk-motion-fast) var(--lk-ease);
+}
+
+.lk-quick-btn:hover {
+  background-color: var(--lk-hairline-soft);
+  color: var(--lk-charcoal);
+}
+
+/* --------------------------------------------------------------------------
+   19. 动效偏好 — DESIGN.md H.3：prefers-reduced-motion 下取消动效
    -------------------------------------------------------------------------- */
 @media (prefers-reduced-motion: reduce) {
   *,

@@ -44,6 +44,7 @@
 
       var fontSize = {
         /* 与 assets/css/app.css 的 --lk-text-* / --lk-leading-* 同源，对应 DESIGN.md {typography.*} */
+        'lk-heading-3': [v('--lk-text-heading-3'), { lineHeight: v('--lk-leading-heading-3'), fontWeight: '600' }],
         'lk-heading-4': [v('--lk-text-heading-4'), { lineHeight: v('--lk-leading-heading-4'), fontWeight: '600' }],
         'lk-heading-5': [v('--lk-text-heading-5'), { lineHeight: v('--lk-leading-heading-5'), fontWeight: '600' }],
         'lk-subtitle': [v('--lk-text-subtitle'), { lineHeight: v('--lk-leading-subtitle'), fontWeight: '400' }],
@@ -411,20 +412,110 @@
 
         <!-- 日常收支 -->
         <section class="lk-view" id="view-account" data-page="account" aria-labelledby="title-account" hidden>
-          <div class="lk-page-head">
-            <h1 class="lk-page-title" id="title-account">日常收支</h1>
-            <p class="lk-page-subtitle">记录每一笔收入与支出。</p>
+          <div class="lk-page-head lk-page-head-row">
+            <div class="lk-page-head-text">
+              <h1 class="lk-page-title" id="title-account">日常收支</h1>
+              <p class="lk-page-subtitle">记录每一笔收入与支出。</p>
+            </div>
+            <button class="lk-btn lk-btn-primary" id="account-add-button" type="button">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                <path d="M12 5.25v13.5M5.25 12h13.5"></path>
+              </svg>
+              <span>记一笔</span>
+            </button>
           </div>
-          <div class="lk-empty-state mt-lk-xl">
+
+          <!-- 月度汇总条（按当月全部流水计算，不受筛选影响） -->
+          <div class="lk-summary-bar">
+            <div class="lk-summary-item" data-variant="income">
+              <span class="lk-summary-label">本月收入</span>
+              <span class="lk-summary-value" id="account-summary-income">¥0.00</span>
+            </div>
+            <div class="lk-summary-item" data-variant="expense">
+              <span class="lk-summary-label">本月支出</span>
+              <span class="lk-summary-value" id="account-summary-expense">¥0.00</span>
+            </div>
+            <div class="lk-summary-item" data-variant="balance">
+              <span class="lk-summary-label">本月结余</span>
+              <span class="lk-summary-value" id="account-summary-balance">¥0.00</span>
+            </div>
+          </div>
+
+          <!-- 工具行：月份切换 + 类型分段筛选 -->
+          <div class="lk-toolbar">
+            <div class="lk-month-nav">
+              <button class="lk-icon-btn lk-icon-btn-sm" id="account-month-prev" type="button" aria-label="上一个月">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                  <path d="M14.25 5.75 8 12l6.25 6.25"></path>
+                </svg>
+              </button>
+
+              <!-- 月份标签本身是按钮：点击唤起原生月份选择器（隐藏的 input[type=month]） -->
+              <div class="lk-month-picker">
+                <button class="lk-month-button" id="account-month-button" type="button" aria-haspopup="dialog" aria-label="选择月份">
+                  <svg data-variant="icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                    <rect x="3.75" y="5.25" width="16.5" height="14.5" rx="2.5"></rect>
+                    <path d="M3.75 9.75h16.5"></path>
+                    <path d="M8.25 3.5v3M15.75 3.5v3"></path>
+                  </svg>
+                  <span class="lk-month-button-label" id="account-month-label">—</span>
+                </button>
+                <!-- 视觉隐藏但保留交互能力：showPicker() 需要它可聚焦 -->
+                <input class="lk-month-input" id="account-month-input" type="month" tabindex="-1" aria-hidden="true">
+              </div>
+
+              <button class="lk-icon-btn lk-icon-btn-sm" id="account-month-next" type="button" aria-label="下一个月">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                  <path d="M9.75 5.75 16 12l-6.25 6.25"></path>
+                </svg>
+              </button>
+              <button class="lk-btn lk-btn-ghost lk-btn-sm" id="account-month-current" type="button">本月</button>
+            </div>
+
+            <div class="lk-segmented lk-segmented-filter" role="tablist" aria-label="按类型筛选">
+              <button class="lk-segmented-item" type="button" data-type-filter="all" aria-selected="true">全部</button>
+              <button class="lk-segmented-item" type="button" data-type-filter="expense" aria-selected="false">支出</button>
+              <button class="lk-segmented-item" type="button" data-type-filter="income" aria-selected="false">收入</button>
+            </div>
+          </div>
+
+          <!-- 二级筛选：分类 / 账户 / 关键词 -->
+          <div class="lk-toolbar lk-toolbar-secondary">
+            <div class="lk-field lk-field-inline">
+              <label class="lk-sr-only" for="account-filter-category">按分类筛选</label>
+              <select class="lk-select lk-select-sm" id="account-filter-category"></select>
+            </div>
+            <div class="lk-field lk-field-inline">
+              <label class="lk-sr-only" for="account-filter-account">按账户筛选</label>
+              <select class="lk-select lk-select-sm" id="account-filter-account"></select>
+            </div>
+            <div class="lk-search-pill lk-search-pill-sm">
+              <svg class="lk-search-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                <circle cx="10.75" cy="10.75" r="6.5"></circle>
+                <path d="M15.75 15.75 20.5 20.5"></path>
+              </svg>
+              <label class="lk-sr-only" for="account-search">搜索备注、分类或账户</label>
+              <input class="lk-search-input" id="account-search" type="search" placeholder="搜索备注 / 分类 / 账户" autocomplete="off" spellcheck="false">
+            </div>
+          </div>
+
+          <p class="lk-filter-hint" id="account-filter-hint"></p>
+
+          <!-- 流水列表：按本地日期分组的容器，内容由 JS 用 DOM API 构建 -->
+          <div class="lk-list-block" id="account-list" aria-live="polite"></div>
+
+          <!-- 空状态（E.3）：无数据时引导记一笔，纯筛选无结果时给出筛选提示 -->
+          <div class="lk-empty-state mt-lk-xl" id="account-empty" hidden>
             <div class="lk-empty-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+              <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
                 <rect x="2.75" y="5.75" width="18.5" height="12.5" rx="3"></rect>
                 <path d="M2.75 10.25h18.5"></path>
                 <path d="M6.75 14.5h3.5"></path>
               </svg>
             </div>
-            <p class="lk-empty-title">日常收支暂无内容</p>
-            <p class="lk-empty-desc">流水列表与记一笔入口将在后续版本中提供。</p>
+            <p class="lk-empty-title" id="account-empty-title">本月还没有流水</p>
+            <p class="lk-empty-desc" id="account-empty-desc">点击右上角「记一笔」，开始记录第一笔收支。</p>
+            <button class="lk-btn lk-btn-primary mt-lk-md" id="account-empty-action" type="button">记一笔</button>
           </div>
         </section>
 

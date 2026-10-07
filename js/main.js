@@ -40,12 +40,16 @@ import {
 } from './lib/dom.js';
 import {
   StorageError,
+  add,
+  getCollection,
   getSecurity,
   getSettings,
   initDB,
   isInitialized,
   onExternalChange,
-  patchSecurity
+  patchSecurity,
+  remove,
+  update
 } from './lib/storage.js';import { formatLocalDateText, throttle } from './lib/utils.js';
 
 import * as dashboardModule from './modules/dashboard.js';
@@ -54,7 +58,6 @@ import * as diaryModule from './modules/diary.js';
 import * as itemsModule from './modules/items.js';
 import * as vaultModule from './modules/vault.js';
 import * as settingsModule from './modules/settings.js';
-
 /* --------------------------------------------------------------------------
  * 全局状态
  * -------------------------------------------------------------------------- */
@@ -173,6 +176,15 @@ function resetAuthForms() {
   settingsConfirmToggle?.reset();
 }
 
+/**
+ * 重置业务模块的内存状态（锁定 / 清空数据 / 换标签页后调用），
+ * 避免上一个解锁会话的筛选条件、月份、进行中的编辑残留到下一次。
+ */
+function resetDataModules() {
+  const reset = /** @type {any} */ (accountModule).resetAccount;
+  if (typeof reset === 'function') reset();
+}
+
 /* --------------------------------------------------------------------------
  * 会话密钥管理（唯一入口）
  * -------------------------------------------------------------------------- */
@@ -268,6 +280,7 @@ function lockNow(reason = 'manual') {
   stopAutoLockTimer();
   clearSessionKey();
   resetAuthForms();
+  resetDataModules();
 
   state.lock = LOCK_STATE.LOCKED;
   showGate('LOCKED');
@@ -298,6 +311,7 @@ async function resetToUninitialized() {
   clearSessionKey();
   limiter.reset();
   resetAuthForms();
+  resetDataModules();
   state.lock = LOCK_STATE.INIT;
   showGate('INIT');
   document.title = 'LifeKeeper — 设置主密码';
@@ -350,7 +364,22 @@ function navigateTo(pageId, options = {}) {
   if (moveFocus) byId('app-main')?.focus({ preventScroll: true });
 
   document.documentElement.dataset.page = pageId;
+
+  // 每次真正落到某个页面时让该模块按最新数据刷新一次
+  // （业务写操作发生在别处时，回到页面能看到最新结果）
+  PAGE_ENTER[pageId]?.();
 }
+
+/**
+ * 页面进入钩子：模块首次渲染在 mount 时完成，这里负责「再次进入时刷新」。
+ * @type {Record<string, () => void>}
+ */
+const PAGE_ENTER = {
+  account: () => {
+    const refresh = /** @type {any} */ (accountModule).renderAccount;
+    if (typeof refresh === 'function') void refresh();
+  }
+};
 
 /* --------------------------------------------------------------------------
  * 门禁表单：设置主密码
@@ -621,6 +650,28 @@ function mountSettingsModule() {
 }
 
 /* --------------------------------------------------------------------------
+ * 日常收支模块装配
+ * -------------------------------------------------------------------------- */
+
+/**
+ * 装配日常收支模块。
+ * 沿用 settings 的注入模式：account.js 不 import storage.js / main.js，
+ * 所有数据与提示能力都在这里注入，因此模块与外壳之间没有循环依赖。
+ */
+function mountAccountModule() {
+  const mount = /** @type {any} */ (accountModule).mountAccount;
+  if (typeof mount !== 'function') return;
+
+  mount({
+    getTransactions: () => getCollection('transactions'),
+    addTransaction: (data) => add('transactions', data),
+    updateTransaction: (id, patch) => update('transactions', id, patch),
+    removeTransaction: (id) => remove('transactions', id),
+    notify: showToast
+  });
+}
+
+/* --------------------------------------------------------------------------
  * 启动
  * -------------------------------------------------------------------------- */
 
@@ -643,6 +694,7 @@ async function bootstrap() {
   bindSetupForm();
   bindUnlockForm();
   mountSettingsModule();
+  mountAccountModule();
 
   // 清空数据入口：仅出现在「已锁定」与「数据损坏」两个门禁视图
   // （未初始化视图不显示该按钮；设置页入口由 settings 模块自己绑定）
