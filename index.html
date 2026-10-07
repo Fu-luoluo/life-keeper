@@ -580,20 +580,76 @@
 
         <!-- 物品台账 -->
         <section class="lk-view" id="view-items" data-page="items" aria-labelledby="title-items" hidden>
-          <div class="lk-page-head">
-            <h1 class="lk-page-title" id="title-items">物品台账</h1>
-            <p class="lk-page-subtitle">清点家里的物品与保修信息。</p>
+          <div class="lk-page-head lk-page-head-row">
+            <div class="lk-page-head-text">
+              <h1 class="lk-page-title" id="title-items">物品台账</h1>
+              <p class="lk-page-subtitle">记下每件东西放在哪，随时搜得到。</p>
+            </div>
+            <button class="lk-btn lk-btn-primary" id="items-add-button" type="button">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                <path d="M12 5.25v13.5M5.25 12h13.5"></path>
+              </svg>
+              <span>添加物品</span>
+            </button>
           </div>
-          <div class="lk-empty-state mt-lk-xl">
+
+          <!-- 小统计条：仅本页展示（v0.7 再接入仪表盘） -->
+          <div class="lk-stat-strip">
+            <div class="lk-stat-item">
+              <span class="lk-stat-label">物品总数</span>
+              <span class="lk-stat-value" id="items-stat-total">0</span>
+            </div>
+            <div class="lk-stat-item" data-variant="expiring">
+              <span class="lk-stat-label">临期</span>
+              <span class="lk-stat-value" id="items-stat-expiring">0</span>
+            </div>
+            <div class="lk-stat-item" data-variant="expired">
+              <span class="lk-stat-label">已过期</span>
+              <span class="lk-stat-value" id="items-stat-expired">0</span>
+            </div>
+          </div>
+
+          <!-- 工具行：搜索 + 分类筛选 + 状态筛选 -->
+          <div class="lk-toolbar">
+            <div class="lk-search-pill">
+              <svg class="lk-search-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                <circle cx="10.75" cy="10.75" r="6.5"></circle>
+                <path d="M15.75 15.75 20.5 20.5"></path>
+              </svg>
+              <label class="lk-sr-only" for="items-search">搜索名称、存放位置或备注</label>
+              <input class="lk-search-input" id="items-search" type="search" placeholder="搜索名称 / 存放位置 / 备注" autocomplete="off" spellcheck="false">
+            </div>
+
+            <div class="lk-toolbar-right">
+              <div class="lk-field lk-field-inline">
+                <label class="lk-sr-only" for="items-filter-category">按分类筛选</label>
+                <select class="lk-select lk-select-sm" id="items-filter-category"></select>
+              </div>
+
+              <div class="lk-segmented lk-segmented-filter" role="tablist" aria-label="按保修状态筛选">
+                <button class="lk-segmented-item" type="button" data-status-filter="all" aria-selected="true">全部</button>
+                <button class="lk-segmented-item" type="button" data-status-filter="EXPIRING" aria-selected="false">临期</button>
+                <button class="lk-segmented-item" type="button" data-status-filter="EXPIRED" aria-selected="false">过期</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- 物品列表：按分类分组、可折叠，内容由 JS 用 DOM API 构建 -->
+          <div class="lk-list-block" id="items-list" aria-live="polite"></div>
+
+          <!-- 空状态（E.3）：无物品时引导添加；筛选无结果时提示并可清空 -->
+          <div class="lk-empty-state mt-lk-xl" id="items-empty" hidden>
             <div class="lk-empty-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+              <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
                 <path d="M3.25 7.75 12 3.5l8.75 4.25L12 12z"></path>
                 <path d="M3.25 7.75V16L12 20.5l8.75-4.5V7.75"></path>
                 <path d="M12 12v8.5"></path>
               </svg>
             </div>
-            <p class="lk-empty-title">物品台账暂无内容</p>
-            <p class="lk-empty-desc">物品列表与保修提醒将在后续版本中提供。</p>
+            <p class="lk-empty-title" id="items-empty-title">还没有登记任何物品</p>
+            <p class="lk-empty-desc" id="items-empty-desc">点击右上角「添加物品」，把东西放在哪记下来。</p>
+            <button class="lk-btn lk-btn-primary mt-lk-md" id="items-empty-action" type="button">添加物品</button>
+            <button class="lk-btn lk-btn-secondary mt-lk-md" id="items-empty-clear" type="button" hidden>清空搜索与筛选</button>
           </div>
         </section>
 

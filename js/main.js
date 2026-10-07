@@ -189,6 +189,9 @@ function resetDataModules() {
 
   const resetDiary = /** @type {any} */ (diaryModule).resetDiary;
   if (typeof resetDiary === 'function') resetDiary();
+
+  const resetItems = /** @type {any} */ (itemsModule).resetItems;
+  if (typeof resetItems === 'function') resetItems();
 }
 
 /* --------------------------------------------------------------------------
@@ -387,6 +390,10 @@ const PAGE_ENTER = {
   },
   diary: () => {
     const refresh = /** @type {any} */ (diaryModule).renderDiary;
+    if (typeof refresh === 'function') void refresh();
+  },
+  items: () => {
+    const refresh = /** @type {any} */ (itemsModule).renderItems;
     if (typeof refresh === 'function') void refresh();
   }
 };
@@ -709,6 +716,26 @@ function mountDiaryModule() {
 }
 
 /* --------------------------------------------------------------------------
+ * 物品台账模块装配
+ * -------------------------------------------------------------------------- */
+
+/**
+ * 装配物品台账模块（同样是注入模式：items.js 不 import storage.js / main.js）。
+ */
+function mountItemsModule() {
+  const mount = /** @type {any} */ (itemsModule).mountItems;
+  if (typeof mount !== 'function') return;
+
+  mount({
+    getItems: () => getCollection('items'),
+    addItem: (data) => add('items', data),
+    updateItem: (id, patch) => update('items', id, patch),
+    removeItem: (id) => remove('items', id),
+    notify: showToast
+  });
+}
+
+/* --------------------------------------------------------------------------
  * 启动
  * -------------------------------------------------------------------------- */
 
@@ -733,6 +760,7 @@ async function bootstrap() {
   mountSettingsModule();
   mountAccountModule();
   mountDiaryModule();
+  mountItemsModule();
 
   // 清空数据入口：仅出现在「已锁定」与「数据损坏」两个门禁视图
   // （未初始化视图不显示该按钮；设置页入口由 settings 模块自己绑定）

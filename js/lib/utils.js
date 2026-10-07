@@ -215,6 +215,108 @@ export function formatTagsInput(tags) {
 }
 
 /* --------------------------------------------------------------------------
+ * 日历日期键（YYYY-MM-DD）工具：物品台账的保修计算用
+ * -------------------------------------------------------------------------- */
+
+const DATE_KEY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
+ * 把日期键解析为本地当天 00:00 的 Date。
+ * 用 new Date(y, m-1, d) 而非 new Date('YYYY-MM-DD')：后者按 UTC 解析，
+ * 在东八区会得到前一天 08:00，跨时区比较就会错一天。
+ * @param {string} dateKey
+ * @returns {Date | null}
+ */
+function parseDateKey(dateKey) {
+  if (typeof dateKey !== 'string' || !DATE_KEY_PATTERN.test(dateKey)) return null;
+  const [year, month, day] = dateKey.split('-').map(Number);
+  const date = new Date(year, month - 1, day);
+  // 反向校验：2026-02-31 这类非法日期会被 Date 归一化，此处予以拒绝
+  if (date.getFullYear() !== year || date.getMonth() + 1 !== month || date.getDate() !== day) {
+    return null;
+  }
+  return date;
+}
+
+/**
+ * Date → 日期键（YYYY-MM-DD，本地时区）。
+ * @param {Date} date
+ * @returns {string}
+ */
+function toDateKey(date) {
+  return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
+}
+
+/** 一天的毫秒数 */
+const DAY_MS = 86_400_000;
+
+/**
+ * 临期窗口（天）：截止前 30 天内（含截止当天）为临期（PRD F4-3）。
+ * 作为唯一真值放在这里，供物品台账与后续仪表盘共用。
+ */
+export const EXPIRING_WINDOW_DAYS = 30;
+
+/**
+ * 计算两个日期键之间相差的天数（按本地日期差，不受时区偏移影响）。
+ * 两个日期都归一到本地 00:00，相加后取整可自动吸收夏令时造成的 23/25 小时日。
+ * @param {string} fromKey
+ * @param {string} toKey
+ * @returns {number | null} toKey - fromKey（天）；任一非法时返回 null
+ */
+export function daysBetweenDateKeys(fromKey, toKey) {
+  const from = parseDateKey(fromKey);
+  const to = parseDateKey(toKey);
+  if (!from || !to) return null;
+  return Math.round((to.getTime() - from.getTime()) / DAY_MS);
+}
+
+/**
+ * 保修状态判定（PRD F4-3：截止前 30 天内为临期，已过截止为过期）。
+ * 规则：
+ *   - 无保修日期 / 非法日期     → { status: null, days: null }
+ *   - 截止当天（days = 0）      → EXPIRING，days 0
+ *   - 还剩 1..30 天             → EXPIRING，days 1..30
+ *   - 还剩 ≥ 31 天              → { status: null, days }
+ *   - 已过截止（days < 0）      → EXPIRED，days 为已过天数（正数）
+ * @param {unknown} warrantyDate 日期键 YYYY-MM-DD
+ * @param {string} todayKey 今天（可注入，便于测试）
+ * @returns {{status: 'EXPIRED' | 'EXPIRING' | null, days: number | null}}
+ */
+export function warrantyStatus(warrantyDate, todayKey) {
+  const today = parseDateKey(todayKey);
+  const target = parseDateKey(warrantyDate);
+  if (!today || !target) return { status: null, days: null };
+
+  const days = Math.round((target.getTime() - today.getTime()) / DAY_MS);
+  if (days < 0) return { status: 'EXPIRED', days: -days };
+  if (days <= EXPIRING_WINDOW_DAYS) return { status: 'EXPIRING', days };
+  return { status: null, days };
+}
+
+/**
+ * 日期键 + n 年（保修快捷「+1年 / +2年 / +3年」）。
+ * 闰年 2 月 29 日在目标年份不存在时回退为 2 月 28 日。
+ * @param {string} dateKey
+ * @param {number} years
+ * @returns {string} 新日期键；输入非法或 years 非整数时返回 ''
+ */
+export function addYearsToDate(dateKey, years) {
+  const date = parseDateKey(dateKey);
+  if (!date || !Number.isInteger(years)) return '';
+
+  const targetYear = date.getFullYear() + years;
+  const month = date.getMonth() + 1;
+  const day = date.getDate();
+
+  const candidate = new Date(targetYear, month - 1, day);
+  // 2 月 29 日在平年会被归一化到 3 月 1 日：回退到该月最后一天（即 2 月 28 日）
+  if (candidate.getMonth() + 1 !== month) {
+    return toDateKey(new Date(targetYear, month, 0));
+  }
+  return toDateKey(candidate);
+}
+
+/* --------------------------------------------------------------------------
  * 时间：本地输入 ↔ ISO 8601（带偏移）
  * -------------------------------------------------------------------------- */
 

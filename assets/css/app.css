@@ -1892,7 +1892,233 @@ html:not(.lk-ready) body {
 }
 
 /* --------------------------------------------------------------------------
-   20. 动效偏好 — DESIGN.md H.3：prefers-reduced-motion 下取消动效
+   20. 物品台账：统计条、可折叠分类分组、物品行、保修状态
+   -------------------------------------------------------------------------- */
+
+/* 小统计条：三格，仅本页展示 */
+.lk-stat-strip {
+  display: flex;
+  align-items: stretch;
+  gap: var(--lk-spacing-md);
+  margin-top: var(--lk-spacing-xl);
+  padding: var(--lk-spacing-md) var(--lk-spacing-lg);
+  background-color: var(--lk-surface);
+  border: 1px solid var(--lk-hairline);
+  border-radius: var(--lk-radius-lg);
+}
+
+.lk-stat-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 96px;
+}
+
+/* 标题 {typography.caption} + {colors.slate} */
+.lk-stat-label {
+  font-size: var(--lk-text-caption);
+  line-height: var(--lk-leading-caption);
+  color: var(--lk-slate);
+}
+
+/* 数字 {typography.heading-5} 字重 600；语义靠颜色传达 */
+.lk-stat-value {
+  font-size: var(--lk-text-heading-5);
+  line-height: var(--lk-leading-heading-5);
+  font-weight: 600;
+  color: var(--lk-charcoal);
+  font-variant-numeric: tabular-nums;
+}
+
+.lk-stat-item[data-variant='expiring'] .lk-stat-value {
+  color: var(--lk-semantic-warning);
+}
+
+.lk-stat-item[data-variant='expired'] .lk-stat-value {
+  color: var(--lk-semantic-error);
+}
+
+/* 分类分组（原生 details/summary，键盘可折叠） */
+.lk-item-group {
+  border: 1px solid var(--lk-hairline);
+  border-radius: var(--lk-radius-lg);
+  background-color: var(--lk-canvas);
+  overflow: hidden;
+}
+
+.lk-item-group + .lk-item-group {
+  margin-top: var(--lk-spacing-md);
+}
+
+.lk-item-group-head {
+  display: flex;
+  align-items: center;
+  gap: var(--lk-spacing-sm);
+  padding: var(--lk-spacing-sm) var(--lk-spacing-md);
+  background-color: var(--lk-surface-soft);
+  border-bottom: 1px solid var(--lk-hairline-soft);
+  cursor: pointer;
+  list-style: none;
+  transition: background-color var(--lk-motion-fast) var(--lk-ease);
+}
+
+.lk-item-group-head::-webkit-details-marker {
+  display: none;
+}
+
+.lk-item-group-head:hover {
+  background-color: var(--lk-hairline-soft);
+}
+
+/* 折叠箭头：展开时旋转 90° */
+.lk-item-chevron {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  color: var(--lk-steel);
+  transition: transform var(--lk-motion-fast) var(--lk-ease);
+}
+
+.lk-item-group[open] .lk-item-chevron {
+  transform: rotate(90deg);
+}
+
+/* 分组头里的小号分类图标容器 */
+.lk-row-icon-sm {
+  width: 28px;
+  height: 28px;
+}
+
+/* 分组标题 {typography.body-sm-medium} + {colors.charcoal} */
+.lk-item-group-title {
+  flex: 1 1 auto;
+  font-size: var(--lk-text-body-sm);
+  line-height: var(--lk-leading-body-sm);
+  font-weight: 500;
+  color: var(--lk-charcoal);
+}
+
+/* 分组数量 {typography.caption-bold} + {colors.steel} */
+.lk-item-group-count {
+  font-size: var(--lk-text-caption-bold);
+  line-height: var(--lk-leading-caption-bold);
+  font-weight: 600;
+  color: var(--lk-steel);
+}
+
+.lk-item-list {
+  display: flex;
+  flex-direction: column;
+}
+
+/* 物品行：{spacing.sm} {spacing.md} 内边距，末行无分割线（DESIGN C） */
+.lk-item-row {
+  display: flex;
+  align-items: center;
+  gap: var(--lk-spacing-md);
+  padding: var(--lk-spacing-sm) var(--lk-spacing-md);
+  border-bottom: 1px solid var(--lk-hairline-soft);
+  transition: background-color var(--lk-motion-fast) var(--lk-ease);
+}
+
+.lk-item-row:last-child {
+  border-bottom: 0;
+}
+
+.lk-item-row:hover {
+  background-color: var(--lk-surface-soft);
+}
+
+.lk-item-main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lk-spacing-xxs);
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+/* 主文本 {typography.body-md-medium} + {colors.charcoal}，单行省略 */
+.lk-item-name {
+  font-size: var(--lk-text-body-md);
+  line-height: var(--lk-leading-body-md);
+  font-weight: 500;
+  color: var(--lk-charcoal);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lk-item-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--lk-spacing-xs);
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+/* 存放位置（前置 14px 定位图标）{typography.body-sm} + {colors.steel} */
+.lk-item-location {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--lk-spacing-xxs);
+  font-size: var(--lk-text-body-sm);
+  line-height: var(--lk-leading-body-sm);
+  color: var(--lk-steel);
+  min-width: 0;
+}
+
+.lk-item-location svg {
+  flex-shrink: 0;
+}
+
+/* 备注与数量：次级信息 */
+.lk-item-note,
+.lk-item-qty {
+  font-size: var(--lk-text-caption);
+  line-height: var(--lk-leading-caption);
+  color: var(--lk-stone);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 240px;
+}
+
+.lk-item-aside {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-shrink: 0;
+  min-width: 128px;
+}
+
+/* 保修状态 {typography.caption-bold} */
+.lk-warranty {
+  font-size: var(--lk-text-caption-bold);
+  line-height: var(--lk-leading-caption-bold);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.lk-warranty[data-variant='expired'] {
+  color: var(--lk-semantic-error);
+}
+
+.lk-warranty[data-variant='expiring'] {
+  color: var(--lk-semantic-warning);
+}
+
+/* 「常用位置」等小节提示文字 */
+.lk-quick-hint {
+  font-size: var(--lk-text-caption);
+  line-height: var(--lk-leading-caption);
+  color: var(--lk-stone);
+}
+
+/* --------------------------------------------------------------------------
+   21. 动效偏好 — DESIGN.md H.3：prefers-reduced-motion 下取消动效
    -------------------------------------------------------------------------- */
 @media (prefers-reduced-motion: reduce) {
   *,
